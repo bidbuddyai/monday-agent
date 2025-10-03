@@ -19,7 +19,7 @@ Thanks for your interest in contributing to the Monday.com AI Assistant! This gu
 
 4. **Environment Setup**
    - Copy `.env.example` to `.env` and fill in required values.
-   - Run `npm start` to launch the Monday development server.
+   - Run `npm run dev` to launch the local client and backend.
 
 5. **Coding Standards**
    - Use ESLint to ensure code style: `npm run lint`.

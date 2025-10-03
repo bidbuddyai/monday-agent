@@ -1,0 +1,21 @@
+version: '1.1.0'
+app:
+  name: Monday AI Assistant
+  hosting:
+    server:
+      type: upload
+      path: .
+    cdn:
+      type: upload
+      path: build/client
+  features:
+    - type: AppFeatureBoardView
+      name: AI Chat Assistant
+      build:
+        source: mondayCodeCdn
+        suffix: "/index.html"
+    - type: AppFeatureDashboardWidget
+      name: AI Assistant Widget
+      build:
+        source: mondayCodeCdn
+        suffix: "/index.html"

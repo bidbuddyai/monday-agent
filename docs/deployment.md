@@ -1,13 +1,13 @@
 # Deployment Guide
 
-This guide describes how to build and deploy the Monday.com AI Assistant marketplace app using the Monday Apps CLI. All infrastructure runs on Monday.com, so no external hosting or server provisioning is required.
+This guide describes how to build and deploy the Monday.com AI Assistant marketplace app using the officially supported Monday Apps CLI (`@mondaycom/apps-cli`). All infrastructure runs on Monday.com, so no external hosting or server provisioning is required.
 
 ## Prerequisites
 
 - Monday.com developer account with permission to create marketplace apps
-- Monday Apps CLI (`monday-apps-cli`) installed globally
-- Poe API key stored securely (you will set this inside the app after deployment)
-- Node.js 16 or later
+- Monday Apps CLI available via `npx mapps`
+- Poe API key stored securely (set inside the app after deployment)
+- Node.js 18 or later (required by Monday Code)
 
 ## 1. Install Dependencies
 
@@ -17,35 +17,39 @@ npm install
 
 ## 2. Authenticate with Monday
 
-Log in using the CLI so that build and deploy operations can interact with your account.
+Log in with the CLI so that build and deploy operations can interact with your account.
 
 ```bash
-monday-code login
+npx mapps init --local
 ```
 
-Follow the browser-based authentication flow. After login the CLI stores an authentication token locally.
+Follow the browser-based authentication flow. After login the CLI stores an authentication token locally in `.mappsrc`.
 
 ## 3. Configure Environment Variables
 
-Copy `.env.example` to `.env` and provide local development values. For deployment, Monday manages secrets, but having `.env` configured ensures the dev server runs correctly.
+Create a `.env` file if you need to override local defaults.
 
-```bash
-cp .env.example .env
-```
-
-Update the following variables if you plan to run the dev server locally:
+Variables you may want for local development:
 
 - `POE_API_KEY` – Optional for local testing. In production it is stored in Monday's secure storage.
-- `PORT` – Port for the local development server (default `8080`).
+- `PORT` – Port for the local development server (default `4000`).
 - `LOG_LEVEL` – Adjust server logging verbosity (`info`, `debug`, etc.).
 
 ## 4. Start Local Development (Optional)
 
 ```bash
-npm start
+npm run dev
 ```
 
-This runs `monday-code dev`, bundling both the client React app and serverless functions. Use Monday's local tunneling instructions to preview the app inside a board view.
+This runs Vite for the React UI on port 3000 and a local Node server on port 4000.
+
+To preview the UI inside Monday while developing, expose the local port with the CLI tunnel:
+
+```bash
+npm run tunnel
+```
+
+Use the generated URL inside the board view configuration. Run `mapps tunnel:create -p 4000` in another terminal if you also need to expose the backend endpoints.
 
 ## 5. Build for Production
 
@@ -53,24 +57,32 @@ This runs `monday-code dev`, bundling both the client React app and serverless f
 npm run build
 ```
 
-This command runs `monday-code build`, producing optimized client assets and server bundles according to `monday-code.json`.
+This command runs Vite, producing optimized client assets in `build/client` which are uploaded to Monday's CDN.
 
-## 6. Deploy to Monday
+## 6. Deploy to Monday Code
 
 ```bash
 npm run deploy
+npm run deploy:cdn
 ```
 
-The CLI uploads both client and server bundles to Monday's infrastructure. After the command finishes you will receive an application URL.
+- `npm run deploy` uploads the Node backend to Monday Code.
+- `npm run deploy:cdn` pushes the static client bundle to the Monday CDN.
+
+If you change hosted paths or add/remove features, sync the manifest:
+
+```bash
+npm run manifest:import
+```
 
 ## 7. Configure App Features
 
 Inside the Monday developer console:
 
 1. Navigate to **Apps** → **Your App**.
-2. Ensure **Board View** and **Dashboard Widget** features are enabled and point to `/client/index.html`.
+2. Ensure **Board View** and **Dashboard Widget** features are enabled and point to the CDN build (`/index.html`).
 3. Assign necessary permissions (Boards read/write, Storage read/write, Account read).
-4. Add an app icon (512x512 PNG) at `assets/icon.png` if you have not already done so.
+4. Upload an app icon (512x512 PNG) from `assets/icon.png` if you have not already done so.
 
 ## 8. Test in Monday Sandbox
 
@@ -91,12 +103,12 @@ If you plan to publish:
 
 ## 10. Manage Updates
 
-For future releases, repeat the build and deploy steps. Maintain release notes in `CHANGELOG.md` and increment the version in `package.json` and `monday-code.json` as appropriate.
+For future releases, repeat the build and deploy steps. Maintain release notes in `CHANGELOG.md` and increment the version in `package.json`, `monday-code.json`, and `app-manifest.yml` as appropriate.
 
 ## Troubleshooting
 
-- **Authentication Issues:** Re-run `monday-code login` or clear CLI credentials.
-- **Deployment Errors:** Ensure your `monday-code.json` paths are valid and the app builds without compilation errors.
+- **Authentication Issues:** Re-run `npx mapps init --local` or clear CLI credentials.
+- **Deployment Errors:** Ensure `app-manifest.yml` paths are valid and the app builds without compilation errors.
 - **Missing Poe API Key:** Users must input keys via the Settings tab; confirm storage permissions are granted.
 
 With these steps, your AI Assistant app can be deployed entirely on Monday's infrastructure without external hosting.
