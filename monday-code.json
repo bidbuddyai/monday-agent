@@ -1,0 +1,50 @@
+{
+  "name": "AI Assistant",
+  "version": "1.0.0",
+  "short_description": "Intelligent AI chat with document parsing and board automation",
+  "long_description": "Embed an AI-powered assistant in Monday.com boards. Upload documents, extract structured data intelligently using term search, and automatically populate board items. Powered by Poe's OpenAI-compatible API with Claude-Sonnet-4.5, GPT-5, and Gemini-2.5-Pro.",
+  "icon": "./assets/icon.png",
+  "permissions": [
+    "boards:read",
+    "boards:write",
+    "storage:read",
+    "storage:write",
+    "account:read"
+  ],
+  "features": {
+    "board_view": {
+      "name": "AI Chat Assistant",
+      "description": "Chat interface with AI for document parsing and board operations",
+      "path": "/client/index.html",
+      "supported": true,
+      "default_options": {
+        "width": 800,
+        "height": 600
+      }
+    },
+    "dashboard_widget": {
+      "name": "AI Assistant Widget",
+      "description": "Quick access AI assistant widget",
+      "path": "/client/index.html",
+      "supported": true
+    }
+  },
+  "server": {
+    "path": "./src/server/index.js",
+    "environment": {
+      "NODE_ENV": "production"
+    }
+  },
+  "client": {
+    "build": {
+      "entry": "./src/client/index.jsx",
+      "output": "./build/client"
+    }
+  },
+  "oauth": {
+    "scopes": [
+      "boards:read",
+      "boards:write"
+    ]
+  }
+}

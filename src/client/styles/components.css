@@ -1,0 +1,13 @@
+.message {
+  width: 100%;
+}
+
+.model-picker,
+.file-upload,
+.action-confirmation {
+  width: 100%;
+}
+
+button {
+  font-family: inherit;
+}
