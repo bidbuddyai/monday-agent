@@ -1,0 +1,6 @@
+{
+  "watch": ["src/server", ".env"],
+  "ext": "js,json",
+  "ignore": ["src/client"],
+  "exec": "node src/server/devServer.js"
+}

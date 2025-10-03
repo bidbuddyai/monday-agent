@@ -109,12 +109,20 @@ function ChatView({ context, boardData, settings, onRefreshBoard }) {
         const boardContext = {
           board_id: boardData.id,
           board_name: boardData.name,
+          workspace_id: context?.workspaceId || null,
+          workspace_name: context?.workspaceName || null,
+          user_id: context?.userId || null,
+          user_kind: context?.userKind || null,
           columns: boardData.columns.map(col => ({
             id: col.id,
             title: col.title,
             type: col.type,
             options: col.settings?.labels ? Object.values(col.settings.labels) : []
-          }))
+          })),
+          groups: boardData.groups?.map(group => ({
+            id: group.id,
+            title: group.title
+          })) || []
         };
 
         response = await axios.post('/api/poe/chat', {

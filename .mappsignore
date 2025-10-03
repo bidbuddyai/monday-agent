@@ -1,0 +1,8 @@
+node_modules
+manifest-export
+.git
+.github
+.vscode
+.idea
+.DS_Store
+coverage

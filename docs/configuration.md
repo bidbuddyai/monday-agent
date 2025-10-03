@@ -64,6 +64,6 @@ Press **💾 Save Settings** to persist any changes. The UI shows a confirmation
 
 - **Missing API Key:** If the chat view reports "Poe API key not configured," revisit settings and re-enter the key.
 - **Invalid Model Error:** Ensure the selected model matches one of the supported names exactly.
-- **Permission Errors:** Confirm the app has storage read/write permissions in `monday-code.json` and within the developer console.
+- **Permission Errors:** Confirm the app has storage read/write permissions in `monday-code.json`/`app-manifest.yml` and within the developer console.
 
 By following these steps, you can tailor the AI assistant to specific boards and workflows while keeping secrets secure.

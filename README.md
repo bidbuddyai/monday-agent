@@ -1,6 +1,6 @@
 # Monday.com AI Assistant
 
-An intelligent AI-powered chat assistant embedded in Monday.com boards. Parse documents, extract structured data, and automate board operations using Poe's OpenAI-compatible API.
+An intelligent AI-powered chat assistant embedded in Monday.com boards. Parse documents, extract structured data, and automate board operations using Monday's hosted infrastructure.
 
 ## ✨ Features
 
@@ -17,10 +17,11 @@ An intelligent AI-powered chat assistant embedded in Monday.com boards. Parse do
 ### Prerequisites
 
 - Monday.com account with developer access
+- Node.js 18+ installed (required by Monday Code)
+- Ability to run the Monday Apps CLI via `npx mapps`
 - Poe API key ([get one here](https://poe.com/api_key))
-- Node.js 16+ installed
 
-### Installation
+### Installation & Local Development
 
 1. **Clone repository:**
    ```bash
@@ -33,40 +34,56 @@ An intelligent AI-powered chat assistant embedded in Monday.com boards. Parse do
    npm install
    ```
 
-3. **Set up environment:**
+3. **(Optional) Configure environment variables for local dev:**
+   Create a `.env` file in the project root to override defaults (e.g. `PORT`, `LOG_LEVEL`).
+
+4. **Authenticate the Monday Apps CLI:**
    ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
+   npx mapps init --local
    ```
+   This generates a local `.mappsrc` file linked to your monday.com API token so subsequent CLI commands can deploy the project.
 
-4. **Install Monday CLI:**
+5. **Start the client and backend locally:**
    ```bash
-   npm install -g monday-apps-cli
+   npm run dev
    ```
+   - React front-end runs on [http://localhost:3000](http://localhost:3000)
+   - Node backend (via `@mondaycom/apps-sdk`) runs on [http://localhost:4000](http://localhost:4000)
 
-5. **Login to Monday:**
+6. **Expose the client to Monday (optional for in-account previews):**
    ```bash
-   monday-code login
+   npm run tunnel
    ```
+   Copy the generated tunnel URL into your board view configuration while testing locally. Run `mapps tunnel:create -p 4000` in a second terminal if you also need to expose the backend API.
 
-6. **Start development server:**
-   ```bash
-   npm start
-   ```
+## 🚢 Deployment
 
-### Deployment
+All hosting is handled by Monday Code. The repository already contains `app-manifest.yml`, `.mondaycoderc`, and `.mappsignore` so the CLI knows how to package the app.
 
-1. **Build for production:**
+1. **Build production assets:**
    ```bash
    npm run build
    ```
+   This runs Vite and outputs static assets to `build/client` for CDN hosting.
 
-2. **Deploy to Monday:**
+2. **Deploy server code:**
    ```bash
    npm run deploy
    ```
+   Select the target app + version when prompted. The command uploads the Node server bundle to Monday Code.
 
-3. **Add to your board:**
+3. **Deploy the client bundle (CDN):**
+   ```bash
+   npm run deploy:cdn
+   ```
+   Run this after the build step to push the contents of `build/client` to Monday's CDN so board and dashboard features load the latest UI.
+
+4. **Sync the manifest (if you change features or hosting paths):**
+   ```bash
+   npm run manifest:import
+   ```
+
+5. **Add to your board:**
    - Go to Monday.com
    - Open any board
    - Click "+ Add View"

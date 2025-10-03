@@ -98,7 +98,7 @@ function SettingsView({ settings, onSave, boardData }) {
           rows={8}
         />
         <p className="help-text">
-          Provide custom instructions to guide the AI assistant's behavior and document parsing strategy.
+          Provide custom instructions to guide the AI assistant&apos;s behavior and document parsing strategy.
         </p>
       </section>
 

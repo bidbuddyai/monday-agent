@@ -157,7 +157,7 @@ Be helpful, accurate, and always validate data before actions.`
 // POST /api/poe/parse-file - Parse uploaded file
 router.post('/parse-file', async (req, res) => {
   try {
-    const { fileUrl, boardContext, message } = req.body;
+    const { fileUrl, boardContext } = req.body;
     const poeApiKey = await getPoeApiKey(req);
 
     if (!poeApiKey) {
@@ -214,7 +214,7 @@ router.post('/execute-tool', async (req, res) => {
     let result;
 
     switch (functionName) {
-      case 'create_monday_item':
+      case 'create_monday_item': {
         const createMutation = `
           mutation ($boardId: ID!, $groupId: String, $itemName: String!, $columnValues: JSON) {
             create_item(
@@ -228,7 +228,7 @@ router.post('/execute-tool', async (req, res) => {
             }
           }
         `;
-        
+
         result = await mondayClient.query(createMutation, {
           variables: {
             boardId: args.board_id,
@@ -237,7 +237,7 @@ router.post('/execute-tool', async (req, res) => {
             columnValues: JSON.stringify(args.column_values)
           }
         });
-        
+
         return res.json({
           success: true,
           action: 'created',
@@ -245,7 +245,9 @@ router.post('/execute-tool', async (req, res) => {
           data: result.data.create_item
         });
 
-      case 'update_monday_item':
+      }
+
+      case 'update_monday_item': {
         const updateMutation = `
           mutation ($itemId: ID!, $columnValues: JSON) {
             change_multiple_column_values(
@@ -257,14 +259,14 @@ router.post('/execute-tool', async (req, res) => {
             }
           }
         `;
-        
+
         result = await mondayClient.query(updateMutation, {
           variables: {
             itemId: args.item_id,
             columnValues: JSON.stringify(args.column_values)
           }
         });
-        
+
         return res.json({
           success: true,
           action: 'updated',
@@ -272,7 +274,9 @@ router.post('/execute-tool', async (req, res) => {
           data: result.data.change_multiple_column_values
         });
 
-      case 'get_board_schema':
+      }
+
+      case 'get_board_schema': {
         const schemaQuery = `
           query ($boardId: [ID!]) {
             boards(ids: $boardId) {
@@ -308,14 +312,16 @@ router.post('/execute-tool', async (req, res) => {
           delete col.settings_str;
           return col;
         });
-        
+
         return res.json({
           success: true,
           action: 'fetched_schema',
           data: board
         });
 
-      case 'search_board_items':
+      }
+
+      case 'search_board_items': {
         const searchQuery = `
           query ($boardId: [ID!]) {
             boards(ids: $boardId) {
@@ -346,7 +352,7 @@ router.post('/execute-tool', async (req, res) => {
             cv.text?.toLowerCase().includes(searchTerm)
           )
         );
-        
+
         return res.json({
           success: true,
           action: 'searched',
@@ -354,10 +360,12 @@ router.post('/execute-tool', async (req, res) => {
           count: filtered.length
         });
 
+      }
+
       default:
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'Unknown function',
-          function: functionName 
+          function: functionName
         });
     }
 

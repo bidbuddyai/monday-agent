@@ -1,8 +1,8 @@
 {
   "name": "AI Assistant",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "short_description": "Intelligent AI chat with document parsing and board automation",
-  "long_description": "Embed an AI-powered assistant in Monday.com boards. Upload documents, extract structured data intelligently using term search, and automatically populate board items. Powered by Poe's OpenAI-compatible API with Claude-Sonnet-4.5, GPT-5, and Gemini-2.5-Pro.",
+  "long_description": "Embed an AI-powered assistant in monday.com boards. Upload documents, extract structured data, and automatically populate board items with validated outputs.",
   "icon": "./assets/icon.png",
   "permissions": [
     "boards:read",

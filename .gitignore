@@ -12,3 +12,7 @@ coverage/
 .monday/
 *.swp
 *.swo
+.mappsrc
+manifest-export/
+*.tar.gz
+temp.zip
