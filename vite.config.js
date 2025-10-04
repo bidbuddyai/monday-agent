@@ -5,6 +5,7 @@ import { resolve } from 'path';
 const rootDir = resolve(__dirname, 'src', 'client');
 
 export default defineConfig({
+  base: '',
   root: rootDir,
   plugins: [react()],
   server: {
