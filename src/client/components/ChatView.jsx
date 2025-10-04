@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import '../styles/ChatView.css';
 import '../styles/components.css';
 
-function ChatView({ boardId, settings, onSelectAgent, onOpenSettings }) {
+function ChatView({ boardId, boardSchema, settings, onSelectAgent, onOpenSettings }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -57,7 +57,8 @@ function ChatView({ boardId, settings, onSelectAgent, onOpenSettings }) {
         body: JSON.stringify({
           boardId,
           message: trimmed,
-          agentId: activeAgent.id
+          agentId: activeAgent.id,
+          boardSchema: boardSchema || ''
         })
       });
 
@@ -105,7 +106,7 @@ function ChatView({ boardId, settings, onSelectAgent, onOpenSettings }) {
         <div>
           <div className="chat-agent-name">{activeAgent?.name || 'Assistant'}</div>
           <div className="chat-agent-meta">
-            model: {settings?.defaultModel || 'claude-sonnet-4.5'} • temp:{' '}
+            model: {settings?.defaultModel || 'claude-sonnet-4.7'} • temp:{' '}
             {(activeAgent?.temperature ?? 0.3).toFixed(1)}
           </div>
         </div>

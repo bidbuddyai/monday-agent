@@ -9,7 +9,20 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    strictPort: true
+    strictPort: true,
+    allowedHosts: (() => {
+      const hosts = ['localhost', '127.0.0.1'];
+      if (process.env.FRONTEND_TUNNEL_HOST) {
+        hosts.push(process.env.FRONTEND_TUNNEL_HOST);
+      }
+      return hosts;
+    })(),
+    proxy: {
+      '/api': {
+        target: 'http://localhost:4000',
+        changeOrigin: true
+      }
+    }
   },
   preview: {
     port: 3000,
