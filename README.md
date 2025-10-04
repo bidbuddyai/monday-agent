@@ -153,12 +153,19 @@ The AI intelligently searches for keywords like:
 
 | Model | Provider | Best For |
 |-------|----------|----------|
-| **Claude-Sonnet-4.5** ⭐ | Anthropic | Document parsing & extraction |
+| **Claude-Sonnet-4.5** ⭐ | Anthropic | Balanced default for documents |
+| Claude-Opus-4.1 | Anthropic | Highest quality Claude responses |
+| Claude-Sonnet-3.5 | Anthropic | Reliable general-purpose chats |
+| Claude-Haiku-3.5 | Anthropic | Rapid lightweight replies |
+| Claude-Opus-4-Reasoning | Anthropic | Extended reasoning chains |
+| Claude-Sonnet-4-Reasoning | Anthropic | Reasoning-focused Sonnet |
 | GPT-5 | OpenAI | Advanced reasoning |
 | GPT-5-Mini | OpenAI | Fast responses |
+| GPT-5-Nano | OpenAI | Cost-efficient automation |
+| GPT-G-Codex | OpenAI | Code and technical tasks |
 | Gemini-2.5-Pro | Google | Multimodal analysis |
-| Claude-Opus-4 | Anthropic | Complex reasoning |
-| Llama-3.3-70B | Meta | Open-source |
+| Gemini-2.5-Flash | Google | Low-latency production flows |
+| Gemini-2.5-Flash-Lite | Google | Budget-friendly latency |
 
 ### Custom Instructions Example
 

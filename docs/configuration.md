@@ -17,14 +17,21 @@ The settings panel is divided into multiple sections:
 
 ## 2. AI Model Configuration
 
-Select which Poe model the assistant should use by default. The dropdown lists all supported models as of October 2025:
+Select which Poe model the assistant should use by default. The dropdown lists all supported models as of March 2026:
 
 - `Claude-Sonnet-4.5` (default and recommended)
+- `Claude-Opus-4.1`
+- `Claude-Sonnet-3.5`
+- `Claude-Haiku-3.5`
+- `Claude-Opus-4-Reasoning`
+- `Claude-Sonnet-4-Reasoning`
 - `GPT-5`
 - `GPT-5-Mini`
+- `GPT-5-Nano`
+- `GPT-G-Codex`
 - `Gemini-2.5-Pro`
-- `Claude-Opus-4`
-- `Llama-3.3-70B`
+- `Gemini-2.5-Flash`
+- `Gemini-2.5-Flash-Lite`
 
 The selection is stored in Monday storage under the `app_settings` key and used by both chat and file parsing endpoints.
 
