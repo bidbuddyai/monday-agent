@@ -1,203 +1,219 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import mondaySdk from 'monday-sdk-js';
 import ChatView from './components/ChatView';
-import SettingsView from './components/SettingsView';
+import DashboardFeed from './components/DashboardFeed';
+import SettingsModal from './components/SettingsModal';
 
 const monday = mondaySdk();
 
+const DEFAULT_AGENT = {
+  id: 'bid-assistant',
+  name: 'Bid Assistant',
+  system: 'You parse construction bid docs and extract key fields for project teams.',
+  temperature: 0.3
+};
+
+const normalizeSettings = (incoming) => {
+  const base = incoming || {};
+  const agents = Array.isArray(base.agents) && base.agents.length ? base.agents : [DEFAULT_AGENT];
+  const selected = agents.find((agent) => agent.id === base.selectedAgentId)?.id || agents[0].id;
+  return {
+    poeKey: base.poeKey || '',
+    defaultModel: base.defaultModel || 'claude-sonnet-4.5',
+    selectedAgentId: selected,
+    agents
+  };
+};
+
 function App() {
-  const [context, setContext] = useState(null);
-  const [boardData, setBoardData] = useState(null);
-  const [settings, setSettings] = useState({
-    model: 'Claude-Sonnet-4.5',
-    customInstructions: '',
-    poeApiKey: ''
-  });
-  const [view, setView] = useState('chat');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [boardId, setBoardId] = useState('global');
+  const [boardName, setBoardName] = useState('Board');
+  const [settings, setSettings] = useState(() => normalizeSettings(null));
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const [settingsError, setSettingsError] = useState(null);
 
   useEffect(() => {
-    initializeApp();
+    try {
+      monday.listen('context', (res) => {
+        const data = res?.data || {};
+        if (data.boardId) {
+          setBoardId(String(data.boardId));
+        }
+        if (data.boardName) {
+          setBoardName(data.boardName);
+        }
+      });
+    } catch (err) {
+      console.warn('Monday context not available, using default board', err);
+    }
   }, []);
 
-  const initializeApp = async () => {
+  const loadSettings = useCallback(async () => {
+    if (!boardId) return;
+    setIsLoadingSettings(true);
+    setSettingsError(null);
     try {
-      // Get Monday context
-      monday.listen('context', async (res) => {
-        setContext(res.data);
-        if (res.data.boardId) {
-          await fetchBoardData(res.data.boardId);
-        }
-      });
-
-      // Load settings
-      await loadSettings();
+      const res = await fetch(`/api/poe/settings?boardId=${boardId}`);
+      if (!res.ok) throw new Error(`Failed to fetch settings (${res.status})`);
+      const data = await res.json();
+      setSettings(normalizeSettings(data));
     } catch (err) {
-      console.error('Initialization error:', err);
-      setError('Failed to initialize app');
+      console.error('Failed to load settings', err);
+      setSettingsError('Unable to load settings');
+      setSettings(normalizeSettings(null));
     } finally {
-      setIsLoading(false);
+      setIsLoadingSettings(false);
     }
-  };
+  }, [boardId]);
 
-  const loadSettings = async () => {
-    try {
-      const res = await monday.storage.instance.getItem('app_settings');
-      if (res.data?.value) {
-        setSettings(JSON.parse(res.data.value));
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
+  const persistSettings = useCallback(
+    async (nextSettings) => {
+      const payload = normalizeSettings(nextSettings);
+      setSettings(payload);
+      try {
+        const res = await fetch('/api/poe/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ boardId, settings: payload })
+        });
+        if (!res.ok) throw new Error(`Failed to save settings (${res.status})`);
+        setSettingsError(null);
+        return payload;
+      } catch (err) {
+        console.error('Failed to save settings', err);
+        setSettingsError('Unable to save settings');
+        throw err;
       }
-    } catch (error) {
-      console.error('Error loading settings:', error);
-    }
-  };
+    },
+    [boardId]
+  );
 
-  const fetchBoardData = async (boardId) => {
+  const handleModalSave = async (next) => {
     try {
-      const response = await monday.api(`
-        query ($boardId: [ID!]) {
-          boards(ids: $boardId) {
-            id
-            name
-            columns {
-              id
-              title
-              type
-              settings_str
-            }
-            groups {
-              id
-              title
-            }
-          }
-        }
-      `, { variables: { boardId: [boardId] } });
-
-      const board = response.data.boards[0];
-      
-      // Parse column settings
-      board.columns = board.columns.map(col => {
-        if (col.settings_str) {
-          try {
-            col.settings = JSON.parse(col.settings_str);
-          } catch (e) {
-            col.settings = {};
-          }
-        }
-        return col;
-      });
-
-      setBoardData(board);
-    } catch (error) {
-      console.error('Error fetching board:', error);
-      monday.execute('notice', {
-        message: 'Failed to load board data',
-        type: 'error'
-      });
+      await persistSettings(next);
+      setIsSettingsOpen(false);
+    } catch (err) {
+      // Error already logged; keep modal open for correction
     }
   };
 
-  const saveSettings = async (newSettings) => {
+  const handleSelectAgent = async (agentId) => {
+    const next = { ...settings, selectedAgentId: agentId };
     try {
-      setSettings(newSettings);
-      
-      // Save settings to storage
-      await monday.storage.instance.setItem(
-        'app_settings',
-        JSON.stringify(newSettings)
-      );
-      
-      // Save API key securely if provided
-      if (newSettings.poeApiKey) {
-        await monday.storage.instance.setItem(
-          'POE_API_KEY',
-          newSettings.poeApiKey,
-          { shared: false }
-        );
-      }
-
-      monday.execute('notice', {
-        message: 'Settings saved successfully',
-        type: 'success'
-      });
-    } catch (error) {
-      console.error('Error saving settings:', error);
-      monday.execute('notice', {
-        message: 'Failed to save settings',
-        type: 'error'
-      });
+      await persistSettings(next);
+    } catch (err) {
+      // If saving fails we still update locally; error banner will show
+      setSettings(next);
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="loading-container">
-        <div className="spinner"></div>
-        <p>Loading AI Assistant...</p>
-      </div>
-    );
-  }
+  const headerTitle = useMemo(() => {
+    return `${boardName || 'Board'} • ${boardId}`;
+  }, [boardId, boardName]);
 
-  if (error) {
+  if (isLoadingSettings) {
     return (
-      <div className="error-container">
-        <h2>⚠️ Error</h2>
-        <p>{error}</p>
-        <button onClick={() => window.location.reload()}>Retry</button>
-      </div>
-    );
-  }
-
-  if (!context || !boardData) {
-    return (
-      <div className="loading-container">
-        <div className="spinner"></div>
-        <p>Loading board data...</p>
+      <div style={styles.centered}>
+        <div>Loading settings…</div>
       </div>
     );
   }
 
   return (
-    <div className="app-container">
-      <header className="app-header">
-        <div className="header-left">
-          <h1>🤖 AI Assistant</h1>
-          <span className="board-badge">{boardData.name}</span>
+    <div style={styles.app}>
+      <header style={styles.header}>
+        <div>
+          <h1 style={styles.title}>AI Assistant</h1>
+          <div style={styles.subtitle}>{headerTitle}</div>
         </div>
-        <div className="header-actions">
-          <button
-            className={`tab-button ${view === 'chat' ? 'active' : ''}`}
-            onClick={() => setView('chat')}
-          >
-            💬 Chat
-          </button>
-          <button
-            className={`tab-button ${view === 'settings' ? 'active' : ''}`}
-            onClick={() => setView('settings')}
-          >
-            ⚙️ Settings
+        <div style={styles.headerActions}>
+          {settingsError && <span style={styles.errorText}>{settingsError}</span>}
+          <button type="button" style={styles.primaryButton} onClick={() => setIsSettingsOpen(true)}>
+            Open Settings
           </button>
         </div>
       </header>
 
-      <main className="app-content">
-        {view === 'chat' ? (
-          <ChatView
-            context={context}
-            boardData={boardData}
-            settings={settings}
-            onRefreshBoard={() => fetchBoardData(context.boardId)}
-          />
-        ) : (
-          <SettingsView
-            settings={settings}
-            onSave={saveSettings}
-            boardData={boardData}
-          />
-        )}
+      <main style={styles.main}>
+        <ChatView
+          boardId={boardId}
+          settings={settings}
+          onSelectAgent={handleSelectAgent}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+        />
+        <DashboardFeed boardId={boardId} />
       </main>
+
+      <SettingsModal
+        open={isSettingsOpen}
+        initial={settings}
+        onClose={() => setIsSettingsOpen(false)}
+        onSave={handleModalSave}
+      />
     </div>
   );
 }
+
+const styles = {
+  app: {
+    height: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    background: '#f6f7fb'
+  },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '16px 24px',
+    borderBottom: '1px solid #e3e8ef',
+    background: '#fff'
+  },
+  title: {
+    margin: 0,
+    fontSize: 22,
+    fontWeight: 600
+  },
+  subtitle: {
+    color: '#64748b',
+    fontSize: 13
+  },
+  headerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 16
+  },
+  primaryButton: {
+    background: '#2563eb',
+    border: 'none',
+    color: '#fff',
+    padding: '8px 16px',
+    borderRadius: 8,
+    cursor: 'pointer'
+  },
+  main: {
+    flex: 1,
+    display: 'flex',
+    gap: 16,
+    padding: 16,
+    overflow: 'hidden'
+  },
+  centered: {
+    height: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 16
+  },
+  errorText: {
+    color: '#b91c1c',
+    fontSize: 13
+  }
+};
 
 export default App;
