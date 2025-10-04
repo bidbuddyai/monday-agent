@@ -11,6 +11,7 @@ Routes rely on Monday's built-in authentication via `req.mondayContext`. Ensure 
 ### GET `/api/poe/models`
 
 Returns the list of available Poe models and identifies the default model.
+The list currently includes Claude Sonnet/Opus variants (including reasoning modes), GPT-5 family models, GPT-G-Codex, and the Gemini 2.5 lineup.
 
 **Response**
 ```json
@@ -19,7 +20,7 @@ Returns the list of available Poe models and identifies the default model.
     {
       "name": "Claude-Sonnet-4.5",
       "provider": "Anthropic",
-      "description": "Best for document parsing and structured data extraction",
+      "description": "Balanced default for high-quality chats and document parsing",
       "maxTokens": 8192,
       "supportsVision": true,
       "supportsFunctions": true,

@@ -27,7 +27,7 @@ router.post('/settings', (req, res) => {
 
   const next = {
     poeKey: settings.poeKey || '',
-    defaultModel: settings.defaultModel || 'claude-sonnet-4.5',
+    defaultModel: settings.defaultModel || 'Claude-Sonnet-4.5',
     selectedAgentId: settings.selectedAgentId || 'bid-assistant',
     agents: Array.isArray(settings.agents) ? settings.agents : []
   };
@@ -43,7 +43,7 @@ router.post('/chat', async (req, res) => {
     const poeKey = saved.poeKey || process.env.POE_API_KEY || null;
     if (!poeKey) return res.status(400).json({ error: 'Missing Poe API key' });
 
-    const model = saved.defaultModel || 'claude-sonnet-4.5';
+    const model = saved.defaultModel || 'Claude-Sonnet-4.5';
     const agentId = req.body?.agentId || saved.selectedAgentId || 'bid-assistant';
     const agent =
       (saved.agents || []).find((a) => a.id === agentId) ||

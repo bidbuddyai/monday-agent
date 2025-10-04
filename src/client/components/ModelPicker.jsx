@@ -4,39 +4,81 @@ const MODELS = [
   {
     name: 'Claude-Sonnet-4.5',
     provider: 'Anthropic',
-    description: 'Best for document parsing',
+    description: 'Balanced default for high-quality chats',
     icon: '🔷',
     recommended: true
   },
   {
+    name: 'Claude-Opus-4.1',
+    provider: 'Anthropic',
+    description: 'Most capable Claude model available',
+    icon: '🔷'
+  },
+  {
+    name: 'Claude-Sonnet-3.5',
+    provider: 'Anthropic',
+    description: 'Reliable general-purpose assistant',
+    icon: '🔷'
+  },
+  {
+    name: 'Claude-Haiku-3.5',
+    provider: 'Anthropic',
+    description: 'Fast lightweight option for quick tasks',
+    icon: '🔷'
+  },
+  {
+    name: 'Claude-Opus-4-Reasoning',
+    provider: 'Anthropic',
+    description: 'Enhanced reasoning-focused Claude',
+    icon: '🧠'
+  },
+  {
+    name: 'Claude-Sonnet-4-Reasoning',
+    provider: 'Anthropic',
+    description: 'Reasoning-tuned Sonnet variant',
+    icon: '🧠'
+  },
+  {
     name: 'GPT-5',
     provider: 'OpenAI',
-    description: 'Advanced reasoning',
+    description: 'Advanced flagship GPT model',
     icon: '🟢'
   },
   {
     name: 'GPT-5-Mini',
     provider: 'OpenAI',
-    description: 'Fast and efficient',
+    description: 'Faster GPT-5 with lower cost',
     icon: '🟢'
+  },
+  {
+    name: 'GPT-5-Nano',
+    provider: 'OpenAI',
+    description: 'Ultra-efficient GPT-5 variant',
+    icon: '🟢'
+  },
+  {
+    name: 'GPT-G-Codex',
+    provider: 'OpenAI',
+    description: 'Optimized for code generation',
+    icon: '💻'
   },
   {
     name: 'Gemini-2.5-Pro',
     provider: 'Google',
-    description: 'Multimodal analysis',
+    description: 'Premium multimodal Gemini model',
     icon: '🔶'
   },
   {
-    name: 'Claude-Opus-4',
-    provider: 'Anthropic',
-    description: 'Most capable reasoning',
-    icon: '🔷'
+    name: 'Gemini-2.5-Flash',
+    provider: 'Google',
+    description: 'Speed-focused Gemini for production',
+    icon: '⚡'
   },
   {
-    name: 'Llama-3.3-70B',
-    provider: 'Meta',
-    description: 'Open-source alternative',
-    icon: '🦙'
+    name: 'Gemini-2.5-Flash-Lite',
+    provider: 'Google',
+    description: 'Cost-efficient Gemini flash tier',
+    icon: '⚡'
   }
 ];
 

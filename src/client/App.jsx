@@ -19,7 +19,7 @@ const normalizeSettings = (incoming) => {
   const selected = agents.find((agent) => agent.id === base.selectedAgentId)?.id || agents[0].id;
   return {
     poeKey: base.poeKey || '',
-    defaultModel: base.defaultModel || 'claude-sonnet-4.5',
+    defaultModel: base.defaultModel || 'Claude-Sonnet-4.5',
     selectedAgentId: selected,
     agents
   };

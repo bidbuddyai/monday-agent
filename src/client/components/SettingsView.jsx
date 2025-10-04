@@ -57,9 +57,12 @@ function SettingsView({ settings, onSave, boardData }) {
         <div className="help-box">
           <strong>💡 Model Recommendations:</strong>
           <ul>
-            <li><strong>Claude-Sonnet-4.5:</strong> Best for document parsing and data extraction</li>
-            <li><strong>GPT-5:</strong> Advanced reasoning for complex tasks</li>
-            <li><strong>Gemini-2.5-Pro:</strong> Excellent multimodal understanding</li>
+            <li><strong>Claude-Sonnet-4.5:</strong> Balanced default for high-quality chats</li>
+            <li><strong>Claude-Opus-4.1:</strong> Highest quality Claude responses</li>
+            <li><strong>Claude-Sonnet-4-Reasoning:</strong> Use for tough reasoning chains</li>
+            <li><strong>GPT-5 / GPT-5-Mini / GPT-5-Nano:</strong> Choose based on desired speed vs. power</li>
+            <li><strong>GPT-G-Codex:</strong> Optimized for code generation tasks</li>
+            <li><strong>Gemini-2.5-Pro / Flash / Flash-Lite:</strong> Great for multimodal or latency-sensitive work</li>
           </ul>
         </div>
       </section>

@@ -1,8 +1,24 @@
 import React, { useEffect, useState } from 'react';
 
+const MODEL_OPTIONS = [
+  'Claude-Sonnet-4.5',
+  'Claude-Opus-4.1',
+  'Claude-Sonnet-3.5',
+  'Claude-Haiku-3.5',
+  'Claude-Opus-4-Reasoning',
+  'Claude-Sonnet-4-Reasoning',
+  'GPT-5',
+  'GPT-5-Mini',
+  'GPT-5-Nano',
+  'GPT-G-Codex',
+  'Gemini-2.5-Pro',
+  'Gemini-2.5-Flash',
+  'Gemini-2.5-Flash-Lite'
+];
+
 export default function SettingsModal({ open, onClose, initial, onSave }) {
   const [poeKey, setPoeKey] = useState(initial?.poeKey || '');
-  const [defaultModel, setDefaultModel] = useState(initial?.defaultModel || 'claude-sonnet-4.5');
+  const [defaultModel, setDefaultModel] = useState(initial?.defaultModel || 'Claude-Sonnet-4.5');
   const [selectedAgentId, setSelectedAgentId] = useState(initial?.selectedAgentId || 'bid-assistant');
   const [agents, setAgents] = useState(
     initial?.agents || [
@@ -18,7 +34,7 @@ export default function SettingsModal({ open, onClose, initial, onSave }) {
   useEffect(() => {
     if (!open) return;
     setPoeKey(initial?.poeKey || '');
-    setDefaultModel(initial?.defaultModel || 'claude-sonnet-4.5');
+    setDefaultModel(initial?.defaultModel || 'Claude-Sonnet-4.5');
     setSelectedAgentId(
       initial?.selectedAgentId || initial?.agents?.[0]?.id || 'bid-assistant'
     );
@@ -90,9 +106,11 @@ export default function SettingsModal({ open, onClose, initial, onSave }) {
             onChange={(event) => setDefaultModel(event.target.value)}
             style={S.input}
           >
-            <option value="claude-sonnet-4.5">Claude-Sonnet-4.5</option>
-            <option value="gpt-5">GPT-5</option>
-            <option value="gemini-2.5-pro">Gemini-2.5-Pro</option>
+            {MODEL_OPTIONS.map((model) => (
+              <option key={model} value={model}>
+                {model}
+              </option>
+            ))}
           </select>
         </div>
         <div style={S.row}>
