@@ -10,16 +10,28 @@ const DEFAULT_AGENT = {
   id: 'bid-assistant',
   name: 'Bid Assistant',
   system: 'You parse construction bid docs and extract key fields for project teams.',
-  temperature: 0.3
+  temperature: 0.3,
+  knowledgeFileIds: []
 };
 
 const normalizeSettings = (incoming) => {
   const base = incoming || {};
-  const agents = Array.isArray(base.agents) && base.agents.length ? base.agents : [DEFAULT_AGENT];
+  const rawAgents =
+    Array.isArray(base.agents) && base.agents.length ? base.agents : [DEFAULT_AGENT];
+  const agents = rawAgents.map((agent, index) => {
+    const temperature = Number(agent?.temperature);
+    return {
+      id: agent?.id || (index === 0 ? DEFAULT_AGENT.id : `agent-${index + 1}`),
+      name: agent?.name || (index === 0 ? DEFAULT_AGENT.name : `Agent ${index + 1}`),
+      system: agent?.system || '',
+      temperature: Number.isFinite(temperature) ? temperature : DEFAULT_AGENT.temperature,
+      knowledgeFileIds: Array.isArray(agent?.knowledgeFileIds) ? agent.knowledgeFileIds : []
+    };
+  });
   const selected = agents.find((agent) => agent.id === base.selectedAgentId)?.id || agents[0].id;
   return {
     poeKey: base.poeKey || '',
-    defaultModel: base.defaultModel || 'claude-sonnet-4.5',
+    defaultModel: base.defaultModel || 'claude-sonnet-4.7',
     selectedAgentId: selected,
     agents
   };
@@ -28,6 +40,7 @@ const normalizeSettings = (incoming) => {
 function App() {
   const [boardId, setBoardId] = useState('global');
   const [boardName, setBoardName] = useState('Board');
+  const [boardData, setBoardData] = useState(null);
   const [settings, setSettings] = useState(() => normalizeSettings(null));
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
@@ -48,6 +61,50 @@ function App() {
       console.warn('Monday context not available, using default board', err);
     }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadBoardSchema = async () => {
+      if (!boardId || boardId === 'global') {
+        setBoardData(null);
+        return;
+      }
+      const numericBoardId = Number(boardId);
+      if (!Number.isFinite(numericBoardId)) {
+        setBoardData(null);
+        return;
+      }
+      try {
+        const query = `
+          query ($boardIds: [Int!]) {
+            boards(ids: $boardIds) {
+              id
+              name
+              groups { id title }
+              columns { id title type }
+            }
+          }
+        `;
+        const response = await monday.api(query, { variables: { boardIds: [numericBoardId] } });
+        if (cancelled) return;
+        const nextBoard = response?.data?.boards?.[0] || null;
+        setBoardData(nextBoard);
+        if (nextBoard?.name) {
+          setBoardName(nextBoard.name);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.warn('Failed to load board schema', err);
+          setBoardData(null);
+        }
+      }
+    };
+
+    loadBoardSchema();
+    return () => {
+      cancelled = true;
+    };
+  }, [boardId]);
 
   const loadSettings = useCallback(async () => {
     if (!boardId) return;
@@ -116,6 +173,17 @@ function App() {
     return `${boardName || 'Board'} • ${boardId}`;
   }, [boardId, boardName]);
 
+  const boardSchemaString = useMemo(() => {
+    if (!boardData) return '';
+    const groups = Array.isArray(boardData.groups)
+      ? boardData.groups.map((group) => `${group.id}:${group.title}`).join(', ')
+      : '';
+    const columns = Array.isArray(boardData.columns)
+      ? boardData.columns.map((column) => `${column.id}:${column.title}(${column.type})`).join(', ')
+      : '';
+    return `Board="${boardData.name}" | Groups=[${groups}] | Columns=[${columns}]`;
+  }, [boardData]);
+
   if (isLoadingSettings) {
     return (
       <div style={styles.centered}>
@@ -142,6 +210,7 @@ function App() {
       <main style={styles.main}>
         <ChatView
           boardId={boardId}
+          boardSchema={boardSchemaString}
           settings={settings}
           onSelectAgent={handleSelectAgent}
           onOpenSettings={() => setIsSettingsOpen(true)}
@@ -151,6 +220,7 @@ function App() {
 
       <SettingsModal
         open={isSettingsOpen}
+        boardId={boardId}
         initial={settings}
         onClose={() => setIsSettingsOpen(false)}
         onSave={handleModalSave}
