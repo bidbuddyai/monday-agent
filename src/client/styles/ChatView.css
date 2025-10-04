@@ -5,6 +5,46 @@
   background: var(--bg-primary);
 }
 
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px 0;
+  gap: 16px;
+}
+
+.chat-agent-name {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.chat-agent-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.chat-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chat-controls select,
+.chat-controls button {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: white;
+  cursor: pointer;
+}
+
+.chat-controls button {
+  background: var(--primary-blue);
+  border: none;
+  color: white;
+}
+
 .messages-container {
   flex: 1;
   overflow-y: auto;
@@ -289,10 +329,23 @@
   transform: scale(1.1);
 }
 
+
 .input-row {
   display: flex;
-  gap: 8px;
-  align-items: center;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.input-row textarea {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 80px;
+  background: white;
 }
 
 .btn-file {
@@ -362,6 +415,16 @@
   opacity: 0.5;
   cursor: not-allowed;
   transform: none !important;
+}
+
+.chat-error-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  margin: 0 24px 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
 }
 
 @keyframes fadeIn {

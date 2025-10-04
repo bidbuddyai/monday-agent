@@ -13,6 +13,12 @@ server.use(cors());
 server.use(express.json({ limit: '50mb' }));
 server.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Ensure mondayContext exists (dev/tunnel mode has no signature)
+server.use((req, _res, next) => {
+  if (!req.mondayContext) req.mondayContext = {};
+  next();
+});
+
 // Import routes
 const poeRoutes = require('./routes/poe');
 const boardRoutes = require('./routes/board');
