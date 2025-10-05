@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { API_BASE } from '../config';
 
 export default function DashboardFeed({ boardId }) {
   const [items, setItems] = useState([]);
@@ -10,7 +11,7 @@ export default function DashboardFeed({ boardId }) {
 
     const fetchFeed = async () => {
       try {
-        const res = await fetch(`/api/poe/feed?boardId=${boardId}`);
+        const res = await fetch(`${API_BASE}/api/poe/feed?boardId=${boardId}`);
         if (!res.ok) throw new Error(`Feed request failed: ${res.status}`);
         const data = await res.json();
         if (!active) return;

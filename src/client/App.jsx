@@ -3,6 +3,7 @@ import mondaySdk from 'monday-sdk-js';
 import ChatView from './components/ChatView';
 import DashboardFeed from './components/DashboardFeed';
 import SettingsModal from './components/SettingsModal';
+import { API_BASE } from './config';
 
 const monday = mondaySdk();
 
@@ -54,7 +55,7 @@ function App() {
     setIsLoadingSettings(true);
     setSettingsError(null);
     try {
-      const res = await fetch(`/api/poe/settings?boardId=${boardId}`);
+      const res = await fetch(`${API_BASE}/api/poe/settings?boardId=${boardId}`);
       if (!res.ok) throw new Error(`Failed to fetch settings (${res.status})`);
       const data = await res.json();
       setSettings(normalizeSettings(data));
@@ -76,7 +77,7 @@ function App() {
       const payload = normalizeSettings(nextSettings);
       setSettings(payload);
       try {
-        const res = await fetch('/api/poe/settings', {
+        const res = await fetch(`${API_BASE}/api/poe/settings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ boardId, settings: payload })

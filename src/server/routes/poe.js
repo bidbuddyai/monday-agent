@@ -1,79 +1,468 @@
 const express = require('express');
+const axios = require('axios');
+const { parseFile: poeParseFile } = require('../services/fileParser');
+const { normalizeColumns } = require('../utils/helpers');
+
 const router = express.Router();
 
-// ===== DEV STORAGE (replace with Monday storage later) =====
-const SETTINGS_BY_BOARD = new Map(); // boardId -> { poeKey, defaultModel, selectedAgentId, agents: [...] }
-const ACTION_LOG = new Map(); // boardId -> [{ ts, type, itemId, note }]
+const DEFAULT_MODEL = 'Claude-Sonnet-4.5';
+const DEFAULT_AGENT = {
+  id: 'bid-assistant',
+  name: 'Bid Assistant',
+  system: 'You parse bid docs and extract key fields for project teams.',
+  temperature: 0.3
+};
 
-// helpers
-const getBoardId = (req) => String(req.body?.boardId || req.query?.boardId || 'global');
+const POE_MODELS = [
+  {
+    name: 'Claude-Sonnet-4.5',
+    provider: 'Anthropic',
+    description: 'Balanced default for high-quality chats and document parsing',
+    maxTokens: 8192,
+    supportsVision: true,
+    supportsFunctions: true,
+    default: true
+  },
+  {
+    name: 'Claude-Opus-4.5',
+    provider: 'Anthropic',
+    description: 'Highest reasoning capability for complex analysis',
+    maxTokens: 8192,
+    supportsVision: true,
+    supportsFunctions: true
+  },
+  {
+    name: 'Claude-Flash-4',
+    provider: 'Anthropic',
+    description: 'Fast, low-latency Claude variant for quick responses',
+    maxTokens: 4096,
+    supportsVision: true,
+    supportsFunctions: true
+  },
+  {
+    name: 'GPT-5-Preview',
+    provider: 'OpenAI',
+    description: 'Latest GPT-5 preview with advanced reasoning',
+    maxTokens: 16384,
+    supportsVision: true,
+    supportsFunctions: true
+  },
+  {
+    name: 'GPT-4.1',
+    provider: 'OpenAI',
+    description: 'General-purpose GPT-4.1 for dependable chat flows',
+    maxTokens: 8192,
+    supportsVision: true,
+    supportsFunctions: true
+  },
+  {
+    name: 'GPT-4.1-Mini',
+    provider: 'OpenAI',
+    description: 'Efficient GPT-4.1 variant optimised for throughput',
+    maxTokens: 8192,
+    supportsVision: true,
+    supportsFunctions: true
+  },
+  {
+    name: 'GPT-o3-mini',
+    provider: 'OpenAI',
+    description: 'Reasoning-tuned GPT-o3 mini for structured tasks',
+    maxTokens: 32768,
+    supportsVision: false,
+    supportsFunctions: true
+  },
+  {
+    name: 'GPT-G-Codex',
+    provider: 'OpenAI',
+    description: 'Code-centric GPT tuned for automations and scripts',
+    maxTokens: 8192,
+    supportsVision: false,
+    supportsFunctions: true
+  },
+  {
+    name: 'Gemini-2.5-Pro',
+    provider: 'Google',
+    description: 'Gemini 2.5 Pro for multimodal enterprise workloads',
+    maxTokens: 8192,
+    supportsVision: true,
+    supportsFunctions: true
+  },
+  {
+    name: 'Gemini-2.5-Flash',
+    provider: 'Google',
+    description: 'Latency-optimised Gemini 2.5 Flash for UI interactions',
+    maxTokens: 8192,
+    supportsVision: true,
+    supportsFunctions: true
+  }
+];
+
+const SETTINGS_BY_BOARD = new Map();
+const ACTION_LOG = new Map();
+
+const getBoardId = (req) => String(req.query.boardId || req.body?.boardId || 'global');
 const getSettings = (boardId) => SETTINGS_BY_BOARD.get(boardId) || null;
 const setSettings = (boardId, settings) => SETTINGS_BY_BOARD.set(boardId, settings);
 const logAction = (boardId, entry) => {
-  const arr = ACTION_LOG.get(boardId) || [];
-  arr.unshift({ ts: new Date().toISOString(), ...entry });
-  ACTION_LOG.set(boardId, arr.slice(0, 50));
+  const list = ACTION_LOG.get(boardId) || [];
+  list.unshift({ ts: new Date().toISOString(), ...entry });
+  ACTION_LOG.set(boardId, list.slice(0, 50));
 };
 
-// ===== SETTINGS API =====
+const buildAxiosError = (error) => {
+  if (error.response) {
+    return {
+      status: error.response.status,
+      data: error.response.data,
+      headers: error.response.headers
+    };
+  }
+  if (error.request) {
+    return { request: true, message: error.message };
+  }
+  return { message: error.message };
+};
+
+const ensureMondayClient = (req) => {
+  if (!req?.mondayContext?.mondayClient) {
+    throw Object.assign(new Error('Monday client unavailable'), { statusCode: 503 });
+  }
+  return req.mondayContext.mondayClient;
+};
+
+router.get('/models', (_req, res) => {
+  res.json({
+    models: POE_MODELS,
+    default: DEFAULT_MODEL
+  });
+});
+
 router.get('/settings', (req, res) => {
-  res.json(getSettings(getBoardId(req)) || null);
+  const boardId = getBoardId(req);
+  res.json(getSettings(boardId) || null);
 });
 
 router.post('/settings', (req, res) => {
   const boardId = getBoardId(req);
   const { settings } = req.body || {};
-  if (!settings) return res.status(400).json({ error: 'Missing settings' });
+  if (!settings) {
+    return res.status(400).json({ error: 'Missing settings' });
+  }
 
   const next = {
     poeKey: settings.poeKey || '',
-    defaultModel: settings.defaultModel || 'Claude-Sonnet-4.5',
-    selectedAgentId: settings.selectedAgentId || 'bid-assistant',
-    agents: Array.isArray(settings.agents) ? settings.agents : []
+    defaultModel: settings.defaultModel || DEFAULT_MODEL,
+    selectedAgentId: settings.selectedAgentId || DEFAULT_AGENT.id,
+    agents: Array.isArray(settings.agents) && settings.agents.length ? settings.agents : [DEFAULT_AGENT]
   };
+
   setSettings(boardId, next);
   res.json({ ok: true });
 });
 
-// ===== CHAT =====
 router.post('/chat', async (req, res) => {
   try {
     const boardId = getBoardId(req);
     const saved = getSettings(boardId) || {};
     const poeKey = saved.poeKey || process.env.POE_API_KEY || null;
-    if (!poeKey) return res.status(400).json({ error: 'Missing Poe API key' });
-
-    const model = saved.defaultModel || 'Claude-Sonnet-4.5';
-    const agentId = req.body?.agentId || saved.selectedAgentId || 'bid-assistant';
-    const agent =
-      (saved.agents || []).find((a) => a.id === agentId) ||
-      { name: 'Bid Assistant', system: 'You parse bid docs…', temperature: 0.3 };
-
-    const userMessage = String(req.body?.message || '').trim();
-    if (!userMessage) return res.status(400).json({ error: 'Missing message' });
-
-    // TODO: Call Poe with poeKey/model/agent/system/temperature + userMessage.
-    const reply = `[${agent.name}] (model=${model}, temp=${agent.temperature}) → ${userMessage}`;
-
-    // Optional: log create/update actions for dashboard
-    if (req.body?.createdItemId) {
-      logAction(boardId, {
-        type: 'create',
-        itemId: req.body.createdItemId,
-        note: `Created by ${agent.name}`
-      });
+    if (!poeKey) {
+      return res.status(400).json({ error: 'Missing Poe API key' });
     }
 
-    res.json({ ok: true, reply });
-  } catch (e) {
-    console.error('Poe chat error:', e);
-    res.status(500).json({ error: 'Internal error', detail: e.message });
+    const userMessage = String(req.body?.message || '').trim();
+    if (!userMessage) {
+      return res.status(400).json({ error: 'Missing message' });
+    }
+
+    const model = saved.defaultModel || DEFAULT_MODEL;
+    const agentId = req.body?.agentId || saved.selectedAgentId || DEFAULT_AGENT.id;
+    const agent = (saved.agents || []).find((item) => item.id === agentId) || DEFAULT_AGENT;
+
+    const response = await axios.post(
+      'https://api.poe.com/v1/chat/completions',
+      {
+        model,
+        temperature: agent.temperature ?? DEFAULT_AGENT.temperature,
+        messages: [
+          { role: 'system', content: agent.system || DEFAULT_AGENT.system },
+          { role: 'user', content: userMessage }
+        ]
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${poeKey}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 60_000
+      }
+    );
+
+    const choice = response.data?.choices?.[0] || {};
+    const reply = choice?.message?.content ?? '';
+    const isToolCall = Array.isArray(choice?.message?.tool_calls) && choice.message.tool_calls.length > 0;
+
+    res.json({
+      ok: true,
+      reply: reply || 'No response from model.',
+      type: isToolCall ? 'tool_call' : 'text',
+      choice
+    });
+  } catch (error) {
+    const errMeta = buildAxiosError(error);
+    console.error('Poe chat error:', errMeta);
+    const status = errMeta.status || 500;
+    const message = errMeta.data?.error || error.message || 'Internal error';
+    res.status(status >= 400 && status < 600 ? status : 500).json({
+      error: message,
+      detail: errMeta.data || errMeta.message
+    });
   }
 });
 
-// ===== DASHBOARD FEED =====
+router.post('/parse-file', async (req, res) => {
+  try {
+    const boardId = getBoardId(req);
+    const saved = getSettings(boardId) || {};
+    const poeKey = saved.poeKey || process.env.POE_API_KEY || null;
+    if (!poeKey) {
+      return res.status(400).json({ error: 'Missing Poe API key' });
+    }
+
+    const { fileUrl, fileName, boardContext = {}, message = '' } = req.body || {};
+    if (!fileUrl) {
+      return res.status(400).json({ error: 'Missing fileUrl' });
+    }
+
+    const response = await axios.get(fileUrl, {
+      responseType: 'arraybuffer',
+      timeout: 120_000
+    });
+
+    const buffer = Buffer.from(response.data);
+    const resolvedFileName = fileName || fileUrl.split('?')[0].split('/').pop() || 'document';
+    const agentId = saved.selectedAgentId || DEFAULT_AGENT.id;
+    const agent = (saved.agents || []).find((item) => item.id === agentId) || DEFAULT_AGENT;
+
+    const mergedContext = {
+      ...boardContext,
+      columns: normalizeColumns(boardContext.columns || [])
+    };
+
+    const instructions = [agent.system, message].filter(Boolean).join('\n\n');
+
+    const result = await poeParseFile(
+      buffer,
+      resolvedFileName,
+      mergedContext,
+      instructions,
+      poeKey,
+      saved.defaultModel || DEFAULT_MODEL
+    );
+
+    logAction(boardId, {
+      type: 'parse',
+      itemId: result?.data?.item_name || null,
+      note: `Parsed ${resolvedFileName}`
+    });
+
+    res.json(result);
+  } catch (error) {
+    const errMeta = buildAxiosError(error);
+    console.error('Poe parse-file error:', errMeta);
+    const status = errMeta.status || 500;
+    res.status(status >= 400 && status < 600 ? status : 500).json({
+      error: 'Failed to parse file',
+      detail: errMeta.data || errMeta.message || error.message
+    });
+  }
+});
+
+router.post('/execute-tool', async (req, res) => {
+  try {
+    const boardId = getBoardId(req);
+    const toolCall = req.body?.tool_call || req.body?.toolCall;
+    if (!toolCall?.function?.name) {
+      return res.status(400).json({ error: 'Missing tool call data' });
+    }
+
+    const mondayClient = ensureMondayClient(req);
+    const functionName = toolCall.function.name;
+    const rawArgs = toolCall.function.arguments;
+    let args = {};
+
+    if (typeof rawArgs === 'string' && rawArgs.trim()) {
+      try {
+        args = JSON.parse(rawArgs);
+      } catch (parseError) {
+        return res.status(400).json({ error: 'Invalid tool arguments', detail: parseError.message });
+      }
+    } else if (typeof rawArgs === 'object' && rawArgs !== null) {
+      args = rawArgs;
+    }
+
+    let payload;
+    let action;
+
+    switch (functionName) {
+      case 'create_monday_item': {
+        const boardIdArg = args.board_id || args.boardId;
+        const itemName = args.item_name || args.itemName;
+        if (!boardIdArg || !itemName) {
+          return res.status(400).json({ error: 'Missing board_id or item_name' });
+        }
+
+        const mutation = `
+          mutation ($boardId: ID!, $groupId: String, $itemName: String!, $columnValues: JSON) {
+            create_item(
+              board_id: $boardId,
+              group_id: $groupId,
+              item_name: $itemName,
+              column_values: $columnValues
+            ) {
+              id
+              name
+              group { id title }
+            }
+          }
+        `;
+
+        const variables = {
+          boardId: boardIdArg,
+          groupId: args.group_id || args.groupId || null,
+          itemName,
+          columnValues: JSON.stringify(args.column_values || args.columnValues || {})
+        };
+
+        const response = await mondayClient.query(mutation, { variables });
+        payload = response.data.create_item;
+        action = 'created';
+        logAction(boardId, { type: 'create', itemId: payload?.id || null, note: `Created item ${payload?.name || ''}` });
+        break;
+      }
+      case 'update_monday_item': {
+        const itemId = args.item_id || args.itemId;
+        const columnValues = args.column_values || args.columnValues;
+        if (!itemId || !columnValues) {
+          return res.status(400).json({ error: 'Missing item_id or column_values' });
+        }
+
+        const mutation = `
+          mutation ($itemId: ID!, $columnValues: JSON) {
+            change_multiple_column_values(
+              item_id: $itemId,
+              column_values: $columnValues
+            ) {
+              id
+              name
+              updated_at
+            }
+          }
+        `;
+
+        const response = await mondayClient.query(mutation, {
+          variables: {
+            itemId,
+            columnValues: JSON.stringify(columnValues)
+          }
+        });
+        payload = response.data.change_multiple_column_values;
+        action = 'updated';
+        logAction(boardId, { type: 'update', itemId, note: 'Updated column values' });
+        break;
+      }
+      case 'get_board_schema': {
+        const boardIdArg = args.board_id || args.boardId || boardId;
+        if (!boardIdArg) {
+          return res.status(400).json({ error: 'Missing board_id' });
+        }
+
+        const query = `
+          query ($boardId: [ID!]) {
+            boards(ids: $boardId) {
+              id
+              name
+              description
+              columns {
+                id
+                title
+                type
+                settings_str
+              }
+              groups {
+                id
+                title
+                color
+              }
+            }
+          }
+        `;
+
+        const response = await mondayClient.query(query, { variables: { boardId: [boardIdArg] } });
+        const board = response.data?.boards?.[0];
+        if (!board) {
+          return res.status(404).json({ error: 'Board not found' });
+        }
+        board.columns = normalizeColumns(board.columns || []);
+        payload = board;
+        action = 'fetched_schema';
+        break;
+      }
+      case 'search_board_items': {
+        const boardIdArg = args.board_id || args.boardId || boardId;
+        if (!boardIdArg) {
+          return res.status(400).json({ error: 'Missing board_id' });
+        }
+        const search = args.query || args.search || args.search_term || '';
+        const limit = Math.min(Number(args.limit) || 20, 100);
+
+        const query = `
+          query ($boardId: [ID!], $limit: Int, $search: String) {
+            boards(ids: $boardId) {
+              items_page(limit: $limit, query_params: { search: $search }) {
+                items {
+                  id
+                  name
+                  column_values {
+                    id
+                    text
+                  }
+                  group { id title }
+                }
+              }
+            }
+          }
+        `;
+
+        const response = await mondayClient.query(query, {
+          variables: {
+            boardId: [boardIdArg],
+            limit,
+            search
+          }
+        });
+        payload = response.data?.boards?.[0]?.items_page?.items || [];
+        action = 'searched';
+        break;
+      }
+      default:
+        return res.status(400).json({ error: `Unsupported tool function: ${functionName}` });
+    }
+
+    res.json({ success: true, action, result: payload });
+  } catch (error) {
+    const status = error.statusCode || error.response?.status || 500;
+    console.error('Execute tool error:', error.response?.data || error);
+    res.status(status >= 400 && status < 600 ? status : 500).json({
+      error: 'Failed to execute tool',
+      message: error.message,
+      detail: error.response?.data
+    });
+  }
+});
+
 router.get('/feed', (req, res) => {
-  res.json({ items: ACTION_LOG.get(getBoardId(req)) || [] });
+  const boardId = getBoardId(req);
+  res.json({ items: ACTION_LOG.get(boardId) || [] });
 });
 
 module.exports = router;
