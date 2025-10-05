@@ -1,24 +1,9 @@
 import React, { useEffect, useState } from 'react';
-
-const MODEL_OPTIONS = [
-  'Claude-Sonnet-4.5',
-  'Claude-Opus-4.1',
-  'Claude-Sonnet-3.5',
-  'Claude-Haiku-3.5',
-  'Claude-Opus-4-Reasoning',
-  'Claude-Sonnet-4-Reasoning',
-  'GPT-5',
-  'GPT-5-Mini',
-  'GPT-5-Nano',
-  'GPT-G-Codex',
-  'Gemini-2.5-Pro',
-  'Gemini-2.5-Flash',
-  'Gemini-2.5-Flash-Lite'
-];
+import { API_BASE } from '../config';
 
 export default function SettingsModal({ open, onClose, initial, onSave }) {
   const [poeKey, setPoeKey] = useState(initial?.poeKey || '');
-  const [defaultModel, setDefaultModel] = useState(initial?.defaultModel || 'Claude-Sonnet-4.5');
+  const [defaultModel, setDefaultModel] = useState(initial?.defaultModel || 'claude-3-5-sonnet-20241022');
   const [selectedAgentId, setSelectedAgentId] = useState(initial?.selectedAgentId || 'bid-assistant');
   const [agents, setAgents] = useState(
     initial?.agents || [
@@ -30,11 +15,40 @@ export default function SettingsModal({ open, onClose, initial, onSave }) {
       }
     ]
   );
+  const [models, setModels] = useState([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
+
+  // Load models from API
+  useEffect(() => {
+    if (!open) return;
+    
+    const loadModels = async () => {
+      try {
+        setModelsLoading(true);
+        const response = await fetch(`${API_BASE}/api/poe/models`);
+        if (response.ok) {
+          const data = await response.json();
+          setModels(data.models || []);
+        }
+      } catch (error) {
+        console.error('Failed to load models:', error);
+        // Fallback to default models if API fails
+        setModels([
+          { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', provider: 'Anthropic' },
+          { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI' }
+        ]);
+      } finally {
+        setModelsLoading(false);
+      }
+    };
+    
+    loadModels();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     setPoeKey(initial?.poeKey || '');
-    setDefaultModel(initial?.defaultModel || 'Claude-Sonnet-4.5');
+    setDefaultModel(initial?.defaultModel || 'claude-3-5-sonnet-20241022');
     setSelectedAgentId(
       initial?.selectedAgentId || initial?.agents?.[0]?.id || 'bid-assistant'
     );
@@ -105,12 +119,17 @@ export default function SettingsModal({ open, onClose, initial, onSave }) {
             value={defaultModel}
             onChange={(event) => setDefaultModel(event.target.value)}
             style={S.input}
+            disabled={modelsLoading}
           >
-            {MODEL_OPTIONS.map((model) => (
-              <option key={model} value={model}>
-                {model}
-              </option>
-            ))}
+            {modelsLoading ? (
+              <option value="">Loading models...</option>
+            ) : (
+              models.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name} ({model.provider})
+                </option>
+              ))
+            )}
           </select>
         </div>
         <div style={S.row}>

@@ -5,7 +5,7 @@ const { normalizeColumns } = require('../utils/helpers');
 
 const router = express.Router();
 
-const DEFAULT_MODEL = 'Claude-Sonnet-4.5';
+const DEFAULT_MODEL = 'claude-3-5-sonnet-20241022';
 const DEFAULT_AGENT = {
   id: 'bid-assistant',
   name: 'Bid Assistant',
@@ -15,83 +15,66 @@ const DEFAULT_AGENT = {
 
 const POE_MODELS = [
   {
-    name: 'Claude-Sonnet-4.5',
+    id: 'claude-3-5-sonnet-20241022',
+    name: 'Claude 3.5 Sonnet',
     provider: 'Anthropic',
-    description: 'Balanced default for high-quality chats and document parsing',
-    maxTokens: 8192,
+    description: 'Most capable Claude model for complex reasoning and document analysis',
+    maxTokens: 200000,
     supportsVision: true,
     supportsFunctions: true,
     default: true
   },
   {
-    name: 'Claude-Opus-4.5',
+    id: 'claude-3-5-haiku-20241022',
+    name: 'Claude 3.5 Haiku',
     provider: 'Anthropic',
-    description: 'Highest reasoning capability for complex analysis',
-    maxTokens: 8192,
+    description: 'Fast and efficient Claude model for quick responses',
+    maxTokens: 200000,
     supportsVision: true,
     supportsFunctions: true
   },
   {
-    name: 'Claude-Flash-4',
+    id: 'claude-3-opus-20240229',
+    name: 'Claude 3 Opus',
     provider: 'Anthropic',
-    description: 'Fast, low-latency Claude variant for quick responses',
-    maxTokens: 4096,
+    description: 'Most powerful Claude model for complex analysis',
+    maxTokens: 200000,
     supportsVision: true,
     supportsFunctions: true
   },
   {
-    name: 'GPT-5-Preview',
+    id: 'gpt-4o',
+    name: 'GPT-4o',
     provider: 'OpenAI',
-    description: 'Latest GPT-5 preview with advanced reasoning',
-    maxTokens: 16384,
+    description: 'Latest GPT-4 model with multimodal capabilities',
+    maxTokens: 128000,
     supportsVision: true,
     supportsFunctions: true
   },
   {
-    name: 'GPT-4.1',
+    id: 'gpt-4o-mini',
+    name: 'GPT-4o Mini',
     provider: 'OpenAI',
-    description: 'General-purpose GPT-4.1 for dependable chat flows',
-    maxTokens: 8192,
+    description: 'Efficient GPT-4 variant optimized for speed and cost',
+    maxTokens: 128000,
     supportsVision: true,
     supportsFunctions: true
   },
   {
-    name: 'GPT-4.1-Mini',
-    provider: 'OpenAI',
-    description: 'Efficient GPT-4.1 variant optimised for throughput',
-    maxTokens: 8192,
-    supportsVision: true,
-    supportsFunctions: true
-  },
-  {
-    name: 'GPT-o3-mini',
-    provider: 'OpenAI',
-    description: 'Reasoning-tuned GPT-o3 mini for structured tasks',
-    maxTokens: 32768,
-    supportsVision: false,
-    supportsFunctions: true
-  },
-  {
-    name: 'GPT-G-Codex',
-    provider: 'OpenAI',
-    description: 'Code-centric GPT tuned for automations and scripts',
-    maxTokens: 8192,
-    supportsVision: false,
-    supportsFunctions: true
-  },
-  {
-    name: 'Gemini-2.5-Pro',
+    id: 'gemini-1.5-pro-latest',
+    name: 'Gemini 1.5 Pro',
     provider: 'Google',
-    description: 'Gemini 2.5 Pro for multimodal enterprise workloads',
-    maxTokens: 8192,
+    description: 'Google\'s most capable model for complex reasoning',
+    maxTokens: 2000000,
     supportsVision: true,
     supportsFunctions: true
   },
   {
-    name: 'Gemini-2.5-Flash',
+    id: 'gemini-1.5-flash-latest',
+    name: 'Gemini 1.5 Flash',
     provider: 'Google',
-    description: 'Latency-optimised Gemini 2.5 Flash for UI interactions',
-    maxTokens: 8192,
+    description: 'Fast Gemini model optimized for speed',
+    maxTokens: 1000000,
     supportsVision: true,
     supportsFunctions: true
   }

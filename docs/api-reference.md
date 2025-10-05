@@ -11,24 +11,33 @@ Routes rely on Monday's built-in authentication via `req.mondayContext`. Ensure 
 ### GET `/api/poe/models`
 
 Returns the list of available Poe models and identifies the default model.
-The list currently includes Claude Sonnet/Opus variants (including reasoning modes), GPT-5 family models, GPT-G-Codex, and the Gemini 2.5 lineup.
+The list includes real Claude 3.5, GPT-4o, and Gemini models.
 
 **Response**
 ```json
 {
   "models": [
     {
-      "name": "Claude-Sonnet-4.5",
+      "id": "claude-3-5-sonnet-20241022",
+      "name": "Claude 3.5 Sonnet",
       "provider": "Anthropic",
-      "description": "Balanced default for high-quality chats and document parsing",
-      "maxTokens": 8192,
+      "description": "Most capable Claude model for complex reasoning and document analysis",
+      "maxTokens": 200000,
       "supportsVision": true,
       "supportsFunctions": true,
       "default": true
     },
-    ...
+    {
+      "id": "gpt-4o",
+      "name": "GPT-4o",
+      "provider": "OpenAI",
+      "description": "Latest GPT-4 model with multimodal capabilities",
+      "maxTokens": 128000,
+      "supportsVision": true,
+      "supportsFunctions": true
+    }
   ],
-  "default": "Claude-Sonnet-4.5"
+  "default": "claude-3-5-sonnet-20241022"
 }
 ```
 
@@ -93,7 +102,7 @@ Downloads a file from Monday (using a temporary URL) and submits it to Poe for s
     ]
   },
   "raw_response": "Full Poe output",
-  "model_used": "Claude-Sonnet-4.5"
+  "model_used": "claude-3-5-sonnet-20241022"
 }
 ```
 

@@ -151,21 +151,15 @@ The AI intelligently searches for keywords like:
 
 ### Available Models
 
-| Model | Provider | Best For |
-|-------|----------|----------|
-| **Claude-Sonnet-4.5** ⭐ | Anthropic | Balanced default for documents |
-| Claude-Opus-4.1 | Anthropic | Highest quality Claude responses |
-| Claude-Sonnet-3.5 | Anthropic | Reliable general-purpose chats |
-| Claude-Haiku-3.5 | Anthropic | Rapid lightweight replies |
-| Claude-Opus-4-Reasoning | Anthropic | Extended reasoning chains |
-| Claude-Sonnet-4-Reasoning | Anthropic | Reasoning-focused Sonnet |
-| GPT-5 | OpenAI | Advanced reasoning |
-| GPT-5-Mini | OpenAI | Fast responses |
-| GPT-5-Nano | OpenAI | Cost-efficient automation |
-| GPT-G-Codex | OpenAI | Code and technical tasks |
-| Gemini-2.5-Pro | Google | Multimodal analysis |
-| Gemini-2.5-Flash | Google | Low-latency production flows |
-| Gemini-2.5-Flash-Lite | Google | Budget-friendly latency |
+|| Model | Provider | Best For |
+||-------|----------|----------|
+|| **Claude 3.5 Sonnet** ⭐ | Anthropic | Most capable model for complex reasoning and documents |
+|| Claude 3.5 Haiku | Anthropic | Fast and efficient for quick responses |
+|| Claude 3 Opus | Anthropic | Most powerful Claude for complex analysis |
+|| GPT-4o | OpenAI | Latest GPT with multimodal capabilities |
+|| GPT-4o Mini | OpenAI | Efficient variant optimized for speed and cost |
+|| Gemini 1.5 Pro | Google | Google's most capable model for complex reasoning |
+|| Gemini 1.5 Flash | Google | Fast Gemini optimized for speed |
 
 ### Custom Instructions Example
 
@@ -183,6 +177,70 @@ When extracting scope, categorize as:
 - "Abate" for asbestos abatement
 - "Demo + Abate" for both
 ```
+
+## 🚀 Deploy to Monday Code
+
+Deploy both client and server components to Monday Code hosting:
+
+### Prerequisites
+
+1. **Set Environment Secrets** in your Monday app version:
+   - `POE_API_KEY` - Your Poe API key
+   - `MONDAY_SIGNING_SECRET` - Monday signing secret (if using middleware)
+
+2. **Install Monday Apps CLI** (if not already installed):
+   ```bash
+   npm install -g @mondaycom/apps-cli
+   ```
+
+3. **Authenticate the CLI**:
+   ```bash
+   npx mapps init --local
+   ```
+
+### Deployment Steps
+
+1. **Build the client**:
+   ```bash
+   npm run build
+   ```
+   This creates optimized assets in `build/client/`
+
+2. **Deploy the server** (must listen on port 8080):
+   ```bash
+   npx mapps code:push -i <versionId>
+   ```
+   Replace `<versionId>` with your Monday app version ID
+
+3. **Deploy the client to CDN**:
+   ```bash
+   npx mapps code:push --client-side -a <appId> -i <versionId> -d ./build/client
+   ```
+   Replace `<appId>` and `<versionId>` with your Monday app and version IDs
+
+4. **Sync the app manifest** (if changed):
+   ```bash
+   npx mapps manifest:import --manifestPath ./app-manifest.yml
+   ```
+
+### Verification
+
+After deployment, verify everything works:
+
+1. **Health check**: `GET https://<service-url>.monday.app/health`
+   Should return: `{"status":"ok", "version":"1.1.0", ...}`
+
+2. **Board view loads**: Add the AI Assistant view to a Monday board
+   - No blank screen (if blank, check `base: ''` in vite.config.js)
+   - Settings modal loads available models
+   - Chat functionality works with proper API key
+
+### Troubleshooting
+
+- **Blank screen**: Ensure `base: ''` is set in `vite.config.js`
+- **API errors**: Verify `POE_API_KEY` is set in Monday app version secrets
+- **CORS issues**: Check server CORS configuration allows Monday.com origins
+- **Build failures**: Ensure all environment variables are properly set
 
 ## 📚 API Reference
 

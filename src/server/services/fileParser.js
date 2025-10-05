@@ -11,7 +11,7 @@ const POE_API_BASE = 'https://api.poe.com/v1';
  * @param {string} poeApiKey - Poe API key
  * @param {string} model - Model to use
  */
-async function parseFile(fileBuffer, fileName, boardContext, customInstructions, poeApiKey, model = 'Claude-Sonnet-4.5') {
+async function parseFile(fileBuffer, fileName, boardContext, customInstructions, poeApiKey, model = 'claude-3-5-sonnet-20241022') {
   try {
     const fileBase64 = fileBuffer.toString('base64');
     const fileExtension = fileName.split('.').pop().toLowerCase();
