@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import '../styles/ChatView.css';
 import '../styles/components.css';
+import { API_BASE } from '../config';
 
 function ChatView({ boardId, settings, onSelectAgent, onOpenSettings }) {
   const [messages, setMessages] = useState([]);
@@ -51,7 +52,7 @@ function ChatView({ boardId, settings, onSelectAgent, onOpenSettings }) {
     setIsSending(true);
 
     try {
-      const res = await fetch('/api/poe/chat', {
+      const res = await fetch(`${API_BASE}/api/poe/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
