@@ -129,6 +129,73 @@ router.get('/models', (_req, res) => {
   });
 });
 
+router.get('/test', async (req, res) => {
+  try {
+    const boardId = getBoardId(req);
+    const saved = getSettings(boardId) || {};
+    
+    // Get POE API key from secure storage or user settings
+    let poeKey = saved.poeKey;
+    if (!poeKey && global.getSecret) {
+      poeKey = await global.getSecret('POE_API_KEY');
+    }
+    if (!poeKey) {
+      poeKey = process.env.POE_API_KEY;
+    }
+    
+    if (!poeKey) {
+      return res.status(400).json({ 
+        error: 'Missing Poe API key',
+        hasEnv: !!process.env.POE_API_KEY,
+        hasGlobal: !!global.getSecret
+      });
+    }
+    
+    // Test simple Poe API call
+    const response = await axios.post(
+      'https://api.poe.com/v1/chat/completions',
+      {
+        model: 'Claude-Sonnet-4',
+        messages: [
+          { role: 'user', content: 'Say "Hello from Poe!" and nothing else.' }
+        ],
+        max_tokens: 20
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${poeKey}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000
+      }
+    );
+    
+    res.json({
+      ok: true,
+      message: 'Poe API test successful',
+      apiKeyLength: poeKey.length,
+      apiKeyPrefix: poeKey.substring(0, 8) + '...',
+      response: response.data
+    });
+  } catch (error) {
+    const errMeta = buildAxiosError(error);
+    console.error('Poe API test error:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      headers: error.response?.headers
+    });
+    
+    res.status(error.response?.status || 500).json({
+      error: 'Poe API test failed',
+      detail: errMeta,
+      errorMessage: error.message,
+      responseData: error.response?.data
+    });
+  }
+});
+
 router.get('/settings', (req, res) => {
   const boardId = getBoardId(req);
   res.json(getSettings(boardId) || null);
@@ -238,9 +305,12 @@ router.post('/chat', async (req, res) => {
       error: message,
       detail: errMeta.data || errMeta.message,
       debugInfo: {
-        endpoint: 'https://api.poe.com/v1/query',
+        endpoint: 'https://api.poe.com/v1/chat/completions',
         hasApiKey: !!poeKey,
-        model: model || 'unknown'
+        apiKeyLength: poeKey ? poeKey.length : 0,
+        apiKeyPrefix: poeKey ? poeKey.substring(0, 8) + '...' : 'none',
+        model: model || 'unknown',
+        requestError: errMeta.message || 'unknown'
       }
     });
   }
