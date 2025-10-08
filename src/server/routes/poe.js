@@ -2,6 +2,8 @@ const express = require('express');
 const axios = require('axios');
 const { parseFile: poeParseFile } = require('../services/fileParser');
 const { normalizeColumns } = require('../utils/helpers');
+const { MONDAY_TOOLS } = require('../config/tools');
+const { buildKnowledgeContext, getKnowledgeBase, setKnowledgeBase, addKnowledgeFile, removeKnowledgeFile } = require('../services/knowledgeBase');
 
 const router = express.Router();
 
@@ -253,18 +255,40 @@ router.post('/chat', async (req, res) => {
     const model = saved.defaultModel || DEFAULT_MODEL;
     const agentId = req.body?.agentId || saved.selectedAgentId || DEFAULT_AGENT.id;
     const agent = (saved.agents || []).find((item) => item.id === agentId) || DEFAULT_AGENT;
+    const enableTools = req.body?.enableTools !== false; // Default to true
+    const mondayClient = req.mondayContext?.mondayClient;
 
-    // Use Poe's OpenAI-compatible API endpoint
+    // Build conversation messages with knowledge base
+    const knowledgeContext = buildKnowledgeContext(boardId, agentId);
+    const systemPrompt = (agent.system || DEFAULT_AGENT.system) + knowledgeContext;
+    
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userMessage }
+    ];
+
+    // Add board context if available
+    if (req.body?.boardContext) {
+      const contextMsg = `\n\nCurrent Board Context:\nBoard ID: ${req.body.boardContext.boardId || boardId}\nBoard Name: ${req.body.boardContext.boardName || 'Unknown'}`;
+      messages[0].content += contextMsg;
+    }
+
+    // Use Poe's OpenAI-compatible API endpoint with tools
+    const requestBody = {
+      model,
+      messages,
+      temperature: agent.temperature ?? DEFAULT_AGENT.temperature
+    };
+
+    // Add tools if enabled and Monday client available
+    if (enableTools && mondayClient) {
+      requestBody.tools = MONDAY_TOOLS;
+      requestBody.tool_choice = 'auto';
+    }
+
     const response = await axios.post(
       'https://api.poe.com/v1/chat/completions',
-      {
-        model,
-        messages: [
-          { role: 'system', content: agent.system || DEFAULT_AGENT.system },
-          { role: 'user', content: userMessage }
-        ],
-        temperature: agent.temperature ?? DEFAULT_AGENT.temperature
-      },
+      requestBody,
       {
         headers: {
           'Authorization': `Bearer ${poeKey}`,
@@ -276,13 +300,16 @@ router.post('/chat', async (req, res) => {
 
     const choice = response.data?.choices?.[0] || {};
     const reply = choice?.message?.content ?? '';
-    const isToolCall = Array.isArray(choice?.message?.tool_calls) && choice.message.tool_calls.length > 0;
+    const toolCalls = choice?.message?.tool_calls || [];
+    const isToolCall = toolCalls.length > 0;
 
     res.json({
       ok: true,
-      reply: reply || 'No response from model.',
+      reply: reply || (isToolCall ? 'Executing tools...' : 'No response from model.'),
       type: isToolCall ? 'tool_call' : 'text',
-      choice
+      toolCalls,
+      choice,
+      hasTools: enableTools && !!mondayClient
     });
   } catch (error) {
     const errMeta = buildAxiosError(error);
@@ -571,6 +598,47 @@ router.post('/execute-tool', async (req, res) => {
 router.get('/feed', (req, res) => {
   const boardId = getBoardId(req);
   res.json({ items: ACTION_LOG.get(boardId) || [] });
+});
+
+// Knowledge Base endpoints
+router.get('/knowledge', (req, res) => {
+  const boardId = getBoardId(req);
+  const agentId = req.query.agentId || DEFAULT_AGENT.id;
+  const kb = getKnowledgeBase(boardId, agentId);
+  res.json(kb);
+});
+
+router.post('/knowledge', (req, res) => {
+  const boardId = getBoardId(req);
+  const { agentId, instructions, files } = req.body || {};
+  
+  if (!agentId) {
+    return res.status(400).json({ error: 'Missing agentId' });
+  }
+
+  setKnowledgeBase(boardId, agentId, { instructions, files });
+  res.json({ ok: true, knowledge: getKnowledgeBase(boardId, agentId) });
+});
+
+router.post('/knowledge/file', (req, res) => {
+  const boardId = getBoardId(req);
+  const { agentId, name, content, type } = req.body || {};
+  
+  if (!agentId || !name || !content) {
+    return res.status(400).json({ error: 'Missing required fields: agentId, name, content' });
+  }
+
+  const file = addKnowledgeFile(boardId, agentId, { name, content, type });
+  res.json({ ok: true, file });
+});
+
+router.delete('/knowledge/file/:fileId', (req, res) => {
+  const boardId = getBoardId(req);
+  const agentId = req.query.agentId || DEFAULT_AGENT.id;
+  const fileId = req.params.fileId;
+  
+  removeKnowledgeFile(boardId, agentId, fileId);
+  res.json({ ok: true });
 });
 
 module.exports = router;
