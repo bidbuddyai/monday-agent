@@ -153,9 +153,20 @@ router.post('/chat', async (req, res) => {
   try {
     const boardId = getBoardId(req);
     const saved = getSettings(boardId) || {};
-    const poeKey = saved.poeKey || process.env.POE_API_KEY || null;
+    
+    // Get POE API key from secure storage or user settings
+    let poeKey = saved.poeKey;
+    if (!poeKey && global.getSecret) {
+      poeKey = await global.getSecret('POE_API_KEY');
+    }
     if (!poeKey) {
-      return res.status(400).json({ error: 'Missing Poe API key' });
+      poeKey = process.env.POE_API_KEY;
+    }
+    
+    if (!poeKey) {
+      return res.status(400).json({ 
+        error: 'Missing Poe API key. Please set your API key in Settings or configure POE_API_KEY secret.' 
+      });
     }
 
     const userMessage = String(req.body?.message || '').trim();
@@ -212,9 +223,20 @@ router.post('/parse-file', async (req, res) => {
   try {
     const boardId = getBoardId(req);
     const saved = getSettings(boardId) || {};
-    const poeKey = saved.poeKey || process.env.POE_API_KEY || null;
+    
+    // Get POE API key from secure storage or user settings
+    let poeKey = saved.poeKey;
+    if (!poeKey && global.getSecret) {
+      poeKey = await global.getSecret('POE_API_KEY');
+    }
     if (!poeKey) {
-      return res.status(400).json({ error: 'Missing Poe API key' });
+      poeKey = process.env.POE_API_KEY;
+    }
+    
+    if (!poeKey) {
+      return res.status(400).json({ 
+        error: 'Missing Poe API key. Please set your API key in Settings or configure POE_API_KEY secret.' 
+      });
     }
 
     const { fileUrl, fileName, boardContext = {}, message = '' } = req.body || {};
