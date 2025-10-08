@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { createServer } = require('@mondaycom/apps-sdk');
+const mondaySdk = require('monday-sdk-js');
 
 const server = express();
 
@@ -17,27 +17,20 @@ server.use(
 server.use(express.json({ limit: '50mb' }));
 server.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Monday Apps SDK middleware for context and signing
-const mondayServer = createServer({
-  signingSecret: process.env.MONDAY_SIGNING_SECRET
-});
-
+// Monday client context middleware
 server.use((req, res, next) => {
-  // Handle Monday SDK context
-  mondayServer.middleware(req, res, (error) => {
-    if (error) {
-      console.error('Monday middleware error:', error);
-      // Continue anyway for development
-      if (!req.mondayContext) {
-        req.mondayContext = {
-          mondayClient: null,
-          user: null,
-          account: null
-        };
-      }
-    }
-    next();
-  });
+  // Initialize Monday context
+  if (!req.mondayContext) {
+    req.mondayContext = {};
+  }
+  
+  // Create Monday client if token is available
+  const token = process.env.MONDAY_API_TOKEN || req.headers['x-monday-token'];
+  if (token) {
+    req.mondayContext.mondayClient = mondaySdk({ token });
+  }
+  
+  next();
 });
 
 server.use('/api/poe', require('./routes/poe'));
