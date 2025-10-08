@@ -1,9 +1,24 @@
 // src/client/config.js
 // API base for hosted mode (Monday Code)
-// In Monday Code, client and server are on the same domain, so we use relative paths
-export const API_BASE = '';
+// The server URL needs to be explicitly set because Published Build (CDN) is on a different domain
 
-// For local development, you can set VITE_API_URL=http://localhost:8080
+// Get server URL from window context injected by Monday Code, or fallback to hardcoded URL
+let serverUrl = '';
+
+if (typeof window !== 'undefined') {
+  // Monday Code injects the server URL in the window context
+  serverUrl = window.mondayServerUrl || window.__MONDAY_SERVER_URL__ || '';
+  
+  // If no server URL is injected, use the deployed server URL
+  if (!serverUrl) {
+    // This is the deployed Monday Code server URL for v3
+    serverUrl = 'https://e51eb-service-23730086-e8794d3f.us.monday.app';
+  }
+}
+
+export const API_BASE = serverUrl;
+
+// For local development override
 if (import.meta.env && import.meta.env.VITE_API_URL) {
-  // Development mode override
+  console.log('Using dev API URL:', import.meta.env.VITE_API_URL);
 }
