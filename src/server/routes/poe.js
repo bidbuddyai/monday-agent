@@ -5,7 +5,7 @@ const { normalizeColumns } = require('../utils/helpers');
 
 const router = express.Router();
 
-const DEFAULT_MODEL = 'claude-3-5-sonnet-20241022';
+const DEFAULT_MODEL = 'Claude-Sonnet-4';
 const DEFAULT_AGENT = {
   id: 'bid-assistant',
   name: 'Bid Assistant',
@@ -15,8 +15,8 @@ const DEFAULT_AGENT = {
 
 const POE_MODELS = [
   {
-    id: 'claude-3-5-sonnet-20241022',
-    name: 'Claude 3.5 Sonnet',
+    id: 'Claude-Sonnet-4',
+    name: 'Claude Sonnet 4',
     provider: 'Anthropic',
     description: 'Most capable Claude model for complex reasoning and document analysis',
     maxTokens: 200000,
@@ -25,25 +25,16 @@ const POE_MODELS = [
     default: true
   },
   {
-    id: 'claude-3-5-haiku-20241022',
-    name: 'Claude 3.5 Haiku',
+    id: 'Claude-Opus-4.1',
+    name: 'Claude Opus 4.1',
     provider: 'Anthropic',
-    description: 'Fast and efficient Claude model for quick responses',
+    description: 'Highest quality Claude model for complex analysis',
     maxTokens: 200000,
     supportsVision: true,
     supportsFunctions: true
   },
   {
-    id: 'claude-3-opus-20240229',
-    name: 'Claude 3 Opus',
-    provider: 'Anthropic',
-    description: 'Most powerful Claude model for complex analysis',
-    maxTokens: 200000,
-    supportsVision: true,
-    supportsFunctions: true
-  },
-  {
-    id: 'gpt-4o',
+    id: 'GPT-4o',
     name: 'GPT-4o',
     provider: 'OpenAI',
     description: 'Latest GPT-4 model with multimodal capabilities',
@@ -52,17 +43,17 @@ const POE_MODELS = [
     supportsFunctions: true
   },
   {
-    id: 'gpt-4o-mini',
-    name: 'GPT-4o Mini',
+    id: 'GPT-5',
+    name: 'GPT-5',
     provider: 'OpenAI',
-    description: 'Efficient GPT-4 variant optimized for speed and cost',
+    description: 'OpenAI\'s latest flagship model',
     maxTokens: 128000,
     supportsVision: true,
     supportsFunctions: true
   },
   {
-    id: 'gemini-1.5-pro-latest',
-    name: 'Gemini 1.5 Pro',
+    id: 'Gemini-2.5-Pro',
+    name: 'Gemini 2.5 Pro',
     provider: 'Google',
     description: 'Google\'s most capable model for complex reasoning',
     maxTokens: 2000000,
@@ -70,11 +61,29 @@ const POE_MODELS = [
     supportsFunctions: true
   },
   {
-    id: 'gemini-1.5-flash-latest',
-    name: 'Gemini 1.5 Flash',
+    id: 'Gemini-2.5-Flash',
+    name: 'Gemini 2.5 Flash',
     provider: 'Google',
     description: 'Fast Gemini model optimized for speed',
     maxTokens: 1000000,
+    supportsVision: true,
+    supportsFunctions: true
+  },
+  {
+    id: 'Llama-3.1-405B',
+    name: 'Llama 3.1 405B',
+    provider: 'Meta',
+    description: 'Meta\'s largest open-source model',
+    maxTokens: 128000,
+    supportsVision: false,
+    supportsFunctions: true
+  },
+  {
+    id: 'Grok-4',
+    name: 'Grok 4',
+    provider: 'xAI',
+    description: 'xAI\'s latest model',
+    maxTokens: 128000,
     supportsVision: true,
     supportsFunctions: true
   }
@@ -178,19 +187,20 @@ router.post('/chat', async (req, res) => {
     const agentId = req.body?.agentId || saved.selectedAgentId || DEFAULT_AGENT.id;
     const agent = (saved.agents || []).find((item) => item.id === agentId) || DEFAULT_AGENT;
 
+    // Use Poe's OpenAI-compatible API endpoint
     const response = await axios.post(
       'https://api.poe.com/v1/chat/completions',
       {
         model,
-        temperature: agent.temperature ?? DEFAULT_AGENT.temperature,
         messages: [
           { role: 'system', content: agent.system || DEFAULT_AGENT.system },
           { role: 'user', content: userMessage }
-        ]
+        ],
+        temperature: agent.temperature ?? DEFAULT_AGENT.temperature
       },
       {
         headers: {
-          Authorization: `Bearer ${poeKey}`,
+          'Authorization': `Bearer ${poeKey}`,
           'Content-Type': 'application/json'
         },
         timeout: 60_000
@@ -209,12 +219,29 @@ router.post('/chat', async (req, res) => {
     });
   } catch (error) {
     const errMeta = buildAxiosError(error);
-    console.error('Poe chat error:', errMeta);
+    console.error('Poe chat error - Full details:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      headers: error.response?.headers,
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        headers: error.config?.headers
+      }
+    });
+    
     const status = errMeta.status || 500;
     const message = errMeta.data?.error || error.message || 'Internal error';
     res.status(status >= 400 && status < 600 ? status : 500).json({
       error: message,
-      detail: errMeta.data || errMeta.message
+      detail: errMeta.data || errMeta.message,
+      debugInfo: {
+        endpoint: 'https://api.poe.com/v1/query',
+        hasApiKey: !!poeKey,
+        model: model || 'unknown'
+      }
     });
   }
 });
