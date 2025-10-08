@@ -106,7 +106,7 @@ function ChatView({ boardId, settings, onSelectAgent, onOpenSettings }) {
         <div>
           <div className="chat-agent-name">{activeAgent?.name || 'Assistant'}</div>
           <div className="chat-agent-meta">
-            model: {settings?.defaultModel || 'Claude-Sonnet-4.5'} • temp:{' '}
+            model: {settings?.defaultModel || 'claude-3-5-sonnet-20241022'} • temp:{' '}
             {(activeAgent?.temperature ?? 0.3).toFixed(1)}
           </div>
         </div>

@@ -125,6 +125,12 @@ router.get('/settings', (req, res) => {
   res.json(getSettings(boardId) || null);
 });
 
+router.get('/feed', (req, res) => {
+  const boardId = getBoardId(req);
+  const actions = ACTION_LOG.get(boardId) || [];
+  res.json({ items: actions.slice(0, 20) });
+});
+
 router.post('/settings', (req, res) => {
   const boardId = getBoardId(req);
   const { settings } = req.body || {};

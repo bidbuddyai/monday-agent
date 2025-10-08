@@ -1,8 +1,12 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const { createServer } = require('@mondaycom/apps-sdk');
 
 const server = express();
+
+// Trust proxy for Monday Code hosting
+server.set('trust proxy', 1);
 
 server.use(
   cors({
@@ -13,9 +17,27 @@ server.use(
 server.use(express.json({ limit: '50mb' }));
 server.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-server.use((req, _res, next) => {
-  if (!req.mondayContext) req.mondayContext = {};
-  next();
+// Monday Apps SDK middleware for context and signing
+const mondayServer = createServer({
+  signingSecret: process.env.MONDAY_SIGNING_SECRET
+});
+
+server.use((req, res, next) => {
+  // Handle Monday SDK context
+  mondayServer.middleware(req, res, (error) => {
+    if (error) {
+      console.error('Monday middleware error:', error);
+      // Continue anyway for development
+      if (!req.mondayContext) {
+        req.mondayContext = {
+          mondayClient: null,
+          user: null,
+          account: null
+        };
+      }
+    }
+    next();
+  });
 });
 
 server.use('/api/poe', require('./routes/poe'));
