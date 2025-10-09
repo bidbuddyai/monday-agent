@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import AssistantWizard from './AssistantWizard';
 import { API_BASE } from '../config';
 
 export default function SettingsModal({ open, onClose, initial, onSave }) {
@@ -17,6 +18,8 @@ export default function SettingsModal({ open, onClose, initial, onSave }) {
   );
   const [models, setModels] = useState([]);
   const [modelsLoading, setModelsLoading] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
+  const [editingAgent, setEditingAgent] = useState(null);
 
   // Load models from API
   useEffect(() => {
@@ -74,6 +77,29 @@ export default function SettingsModal({ open, onClose, initial, onSave }) {
       ...prev,
       { id, name: 'New Agent', system: '', temperature: 0.2 }
     ]);
+  };
+
+  const handleWizardSave = (agentData) => {
+    if (editingAgent) {
+      // Update existing agent
+      setAgents((prev) => prev.map((a) => (a.id === editingAgent.id ? agentData : a)));
+    } else {
+      // Add new agent
+      setAgents((prev) => [...prev, agentData]);
+      setSelectedAgentId(agentData.id);
+    }
+    setShowWizard(false);
+    setEditingAgent(null);
+  };
+
+  const handleWizardCancel = () => {
+    setShowWizard(false);
+    setEditingAgent(null);
+  };
+
+  const handleEditAgent = (agent) => {
+    setEditingAgent(agent);
+    setShowWizard(true);
   };
 
   const updateAgent = (id, patch) =>
@@ -148,9 +174,14 @@ export default function SettingsModal({ open, onClose, initial, onSave }) {
         </div>
 
         <div style={{ margin: '12px 0' }}>
-          <button onClick={addAgent} style={S.secondary} type="button">
-            + Add Agent
-          </button>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <button onClick={() => setShowWizard(true)} style={S.primary} type="button">
+              🧙 Create Assistant Wizard
+            </button>
+            <button onClick={addAgent} style={S.secondary} type="button">
+              + Quick Add Agent
+            </button>
+          </div>
           <div
             style={{
               marginTop: 8,
@@ -172,6 +203,13 @@ export default function SettingsModal({ open, onClose, initial, onSave }) {
                     onChange={(event) => updateAgent(agent.id, { name: event.target.value })}
                     style={S.input}
                   />
+                  <button
+                    onClick={() => handleEditAgent(agent)}
+                    style={S.secondary}
+                    type="button"
+                  >
+                    Edit
+                  </button>
                   <button
                     onClick={() => removeAgent(agent.id)}
                     style={S.danger}
@@ -215,6 +253,15 @@ export default function SettingsModal({ open, onClose, initial, onSave }) {
           </button>
         </div>
       </div>
+
+      {showWizard && (
+        <AssistantWizard
+          initialData={editingAgent}
+          availableModels={models}
+          onSave={handleWizardSave}
+          onCancel={handleWizardCancel}
+        />
+      )}
     </div>
   );
 }
