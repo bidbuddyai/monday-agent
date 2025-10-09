@@ -71,6 +71,7 @@ server.use((req, res, next) => {
 
 server.use('/api/poe', require('./routes/poe'));
 server.use('/api/board', require('./routes/board'));
+server.use('/api', require('./routes/upload'));
 
 server.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.1.0' });

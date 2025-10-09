@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import mondaySdk from 'monday-sdk-js';
 import { API_BASE } from '../config';
+import '../styles/DashboardFeed.css';
+
+const monday = mondaySdk();
 
 export default function DashboardFeed({ boardId }) {
   const [items, setItems] = useState([]);
@@ -35,98 +39,77 @@ export default function DashboardFeed({ boardId }) {
     };
   }, [boardId]);
 
+  const getActionIcon = (type) => {
+    switch (type) {
+      case 'create': return '➕';
+      case 'update': return '✏️';
+      case 'parse': return '📄';
+      case 'search': return '🔍';
+      default: return '•';
+    }
+  };
+
+  const getActionColor = (type) => {
+    switch (type) {
+      case 'create': return '#00ca72';
+      case 'update': return '#0073ea';
+      case 'parse': return '#fdab3d';
+      case 'search': return '#a25ddc';
+      default: return '#676879';
+    }
+  };
+
+  const handleItemClick = async (item) => {
+    if (!item.itemId) return;
+
+    try {
+      await monday.execute('openItemCard', { itemId: parseInt(item.itemId) });
+    } catch (err) {
+      console.error('Failed to open item card:', err);
+    }
+  };
+
   return (
-    <div style={styles.panel}>
-      <div style={styles.header}>Recent Actions</div>
-      {error && <div style={styles.error}>{error}</div>}
+    <div className="dashboard-feed">
+      <div className="feed-header">
+        <h3>Recent AI Actions</h3>
+      </div>
+      {error && <div className="feed-error">{error}</div>}
       {!error && !items.length && (
-        <div style={styles.empty}>No assistant activity yet.</div>
+        <div className="feed-empty">No assistant activity yet.</div>
       )}
-      <ul style={styles.list}>
+      <div className="actions-list">
         {items.map((item, index) => (
-          <li key={`${item.ts}-${index}`} style={styles.item}>
-            <div style={styles.meta}>
-              <span style={styles.type}>{item.type}</span>
-              <span>{new Date(item.ts).toLocaleString()}</span>
+          <div
+            key={`${item.ts}-${index}`}
+            className={`action-item ${item.itemId ? 'clickable' : ''}`}
+            onClick={() => handleItemClick(item)}
+            style={{ borderLeft: `4px solid ${getActionColor(item.type)}` }}
+          >
+            <div className="action-header">
+              <span className="action-icon">{getActionIcon(item.type)}</span>
+              <span className="action-type" style={{ color: getActionColor(item.type) }}>
+                {item.type.toUpperCase()}
+              </span>
+              <span className="action-time">
+                {new Date(item.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
             </div>
-            <div style={styles.body}>
-              <strong>Item:</strong> {item.itemId || 'n/a'}
-              {item.note && <div style={styles.note}>{item.note}</div>}
+            <div className="action-content">
+              <div className="action-note">
+                {item.note || `Item: ${item.itemId || 'n/a'}`}
+              </div>
+              {item.changedColumns && item.changedColumns.length > 0 && (
+                <div className="changed-columns">
+                  {item.changedColumns.map((col, idx) => (
+                    <span key={idx} className="column-badge">{col}</span>
+                  ))}
+                </div>
+              )}
             </div>
-          </li>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }
-
-const styles = {
-  panel: {
-    border: '1px solid #e3e8ef',
-    borderRadius: 12,
-    padding: 16,
-    background: '#fff',
-    minWidth: 260,
-    maxWidth: 360,
-    flex: '0 0 320px',
-    height: '100%',
-    boxShadow: '0 4px 16px rgba(15, 23, 42, 0.08)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 12
-  },
-  header: {
-    fontSize: 16,
-    fontWeight: 600
-  },
-  list: {
-    listStyle: 'none',
-    margin: 0,
-    padding: 0,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 12,
-    overflowY: 'auto'
-  },
-  item: {
-    border: '1px solid #f0f0f5',
-    borderRadius: 8,
-    padding: 12,
-    background: '#f9fafb',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6
-  },
-  meta: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: 12,
-    color: '#64748b'
-  },
-  type: {
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    fontWeight: 600
-  },
-  body: {
-    fontSize: 14,
-    color: '#1f2937'
-  },
-  note: {
-    marginTop: 4,
-    fontSize: 13,
-    color: '#475569'
-  },
-  error: {
-    background: '#fef2f2',
-    border: '1px solid #fecaca',
-    padding: 8,
-    borderRadius: 6,
-    color: '#b91c1c',
-    fontSize: 13
-  },
-  empty: {
-    fontSize: 13,
-    color: '#6b7280'
-  }
-};

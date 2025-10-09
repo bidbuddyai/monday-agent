@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ConfirmationDialog from './ConfirmationDialog';
+import ParseResultModal from './ParseResultModal';
 import '../styles/ChatView.css';
 import '../styles/components.css';
 import { API_BASE } from '../config';
@@ -11,6 +12,9 @@ function ChatView({ boardId, settings, onSelectAgent, onOpenSettings }) {
   const [error, setError] = useState(null);
   const [pendingToolCall, setPendingToolCall] = useState(null);
   const [executingTool, setExecutingTool] = useState(false);
+  const [parsing, setParsing] = useState(false);
+  const [parseResult, setParseResult] = useState(null);
+  const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
 
   const agents = settings?.agents?.length ? settings.agents : [
@@ -177,6 +181,144 @@ function ChatView({ boardId, settings, onSelectAgent, onOpenSettings }) {
     setPendingToolCall(null);
   };
 
+  const handleFileSelect = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setParsing(true);
+    setError(null);
+
+    // Add message that file is being parsed
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        content: `📎 Analyzing ${file.name}...`,
+        ts: new Date().toISOString()
+      }
+    ]);
+
+    try {
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('boardId', boardId);
+
+      // Upload file to get URL
+      const uploadRes = await fetch(`${API_BASE}/api/upload-file`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error('Failed to upload file');
+      }
+
+      const { fileUrl } = await uploadRes.json();
+
+      // Parse the file
+      const parseRes = await fetch(`${API_BASE}/api/poe/parse-file`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileUrl,
+          boardId,
+          message: `Parse this file and extract relevant information for the board`
+        })
+      });
+
+      const data = await parseRes.json();
+
+      if (!parseRes.ok) {
+        throw new Error(data.error || 'Failed to parse file');
+      }
+
+      // Show parse result
+      setParseResult({
+        fileName: file.name,
+        ...data
+      });
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `✓ Extracted data from ${file.name}. Please review and confirm to create item.`,
+          ts: new Date().toISOString()
+        }
+      ]);
+    } catch (err) {
+      console.error('File parsing error:', err);
+      const errMsg = `Failed to parse file: ${err.message}`;
+      setError(errMsg);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `⚠️ ${errMsg}`,
+          ts: new Date().toISOString(),
+          error: true
+        }
+      ]);
+    } finally {
+      setParsing(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleCreateFromParse = async (data) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/poe/execute-tool`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          toolCall: {
+            function: 'create_monday_item',
+            arguments: {
+              board_id: boardId,
+              item_name: data.itemName,
+              column_values: data.columnValues
+            }
+          },
+          boardId
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create item');
+      }
+
+      // Success feedback
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `✓ Created new item: ${data.itemName}`,
+          ts: new Date().toISOString()
+        }
+      ]);
+
+      setParseResult(null);
+    } catch (err) {
+      console.error('Create item error:', err);
+      setError(`Failed to create item: ${err.message}`);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `⚠️ Failed to create item: ${err.message}`,
+          ts: new Date().toISOString(),
+          error: true
+        }
+      ]);
+    }
+  };
+
   const handleKeyDown = (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
@@ -195,6 +337,22 @@ function ChatView({ boardId, settings, onSelectAgent, onOpenSettings }) {
           </div>
         </div>
         <div className="chat-controls">
+          <input
+            type="file"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            onChange={handleFileSelect}
+            accept=".pdf,.docx,.doc,.txt,.jpg,.jpeg,.png,.json,.csv"
+          />
+          <button
+            type="button"
+            className="btn-upload"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={parsing || isSending}
+            title="Upload document to parse"
+          >
+            📎
+          </button>
           <select
             value={activeAgent?.id || ''}
             onChange={(event) => onSelectAgent(event.target.value)}
@@ -250,6 +408,15 @@ function ChatView({ boardId, settings, onSelectAgent, onOpenSettings }) {
           onConfirm={handleConfirmToolCall}
           onCancel={handleCancelToolCall}
           disabled={executingTool}
+        />
+      )}
+
+      {/* Parse Result Modal */}
+      {parseResult && (
+        <ParseResultModal
+          result={parseResult}
+          onCreateItem={handleCreateFromParse}
+          onCancel={() => setParseResult(null)}
         />
       )}
 

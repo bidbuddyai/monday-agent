@@ -3,6 +3,7 @@ import mondaySdk from 'monday-sdk-js';
 import ChatView from './components/ChatView';
 import DashboardFeed from './components/DashboardFeed';
 import SettingsModal from './components/SettingsModal';
+import OnboardingModal from './components/OnboardingModal';
 import { API_BASE } from './config';
 
 const monday = mondaySdk();
@@ -33,6 +34,7 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [settingsError, setSettingsError] = useState(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     try {
@@ -72,6 +74,30 @@ function App() {
     loadSettings();
   }, [loadSettings]);
 
+  // Check if onboarding should be shown
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      if (isLoadingSettings) return;
+      
+      try {
+        // Check if onboarding was completed
+        const result = await monday.storage.instance.getItem('onboardingCompleted');
+        
+        // Also check if Poe API key is missing
+        const hasPoeKey = settings?.poeKey && settings.poeKey.length > 0;
+        
+        // Show onboarding if not completed AND no API key
+        if (!result?.data?.value && !hasPoeKey) {
+          setShowOnboarding(true);
+        }
+      } catch (err) {
+        console.error('Failed to check onboarding status:', err);
+      }
+    };
+    
+    checkOnboarding();
+  }, [settings, isLoadingSettings]);
+
   const persistSettings = useCallback(
     async (nextSettings) => {
       const payload = normalizeSettings(nextSettings);
@@ -110,6 +136,26 @@ function App() {
     } catch (err) {
       // If saving fails we still update locally; error banner will show
       setSettings(next);
+    }
+  };
+
+  const handleOnboardingComplete = async () => {
+    try {
+      await monday.storage.instance.setItem('onboardingCompleted', 'true');
+      setShowOnboarding(false);
+    } catch (err) {
+      console.error('Failed to save onboarding status:', err);
+      setShowOnboarding(false);
+    }
+  };
+
+  const handleOnboardingSkip = async () => {
+    try {
+      await monday.storage.instance.setItem('onboardingCompleted', 'true');
+      setShowOnboarding(false);
+    } catch (err) {
+      console.error('Failed to save onboarding status:', err);
+      setShowOnboarding(false);
     }
   };
 
@@ -156,6 +202,13 @@ function App() {
         onClose={() => setIsSettingsOpen(false)}
         onSave={handleModalSave}
       />
+
+      {showOnboarding && (
+        <OnboardingModal
+          onComplete={handleOnboardingComplete}
+          onSkip={handleOnboardingSkip}
+        />
+      )}
     </div>
   );
 }
