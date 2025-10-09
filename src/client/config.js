@@ -11,8 +11,8 @@ if (typeof window !== 'undefined') {
   
   // If no server URL is injected, use the deployed server URL
   if (!serverUrl) {
-    // This is the deployed Monday Code server URL for v3
-    serverUrl = 'https://e51eb-service-23730086-e8794d3f.us.monday.app';
+    // This is the deployed Monday Code server URL for v4
+    serverUrl = 'https://eb8fc-service-23730086-e8794d3f.us.monday.app';
   }
 }
 

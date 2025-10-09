@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Poe AI Assistant Test</title>
+    <script src="https://cdn.monday.com/sdk/v2/monday-sdk.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        button {
+            background: #0073ea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0060c2;
+        }
+        .response {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Poe AI Assistant - Direct API Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Health Check</h2>
+        <button onclick="testHealth()">Test Health</button>
+        <div id="health-response" class="response"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Get Models</h2>
+        <button onclick="testModels()">Get Models</button>
+        <div id="models-response" class="response"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 3: Chat with AI</h2>
+        <input type="text" id="chat-message" placeholder="Enter your message..." value="What is 2+2?">
+        <button onclick="testChat()">Send Message</button>
+        <div id="chat-response" class="response"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 4: Poe API Connection</h2>
+        <button onclick="testPoeApi()">Test Poe API</button>
+        <div id="poe-response" class="response"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://e51eb-service-23730086-e8794d3f.us.monday.app';
+
+        async function testHealth() {
+            const responseDiv = document.getElementById('health-response');
+            responseDiv.textContent = 'Testing...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                responseDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                responseDiv.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function testModels() {
+            const responseDiv = document.getElementById('models-response');
+            responseDiv.textContent = 'Testing...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/poe/models`);
+                const data = await response.json();
+                responseDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                responseDiv.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function testChat() {
+            const responseDiv = document.getElementById('chat-response');
+            const message = document.getElementById('chat-message').value;
+            responseDiv.textContent = 'Sending message...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/poe/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        boardId: 'test',
+                        enableTools: false
+                    })
+                });
+                const data = await response.json();
+                responseDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                responseDiv.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function testPoeApi() {
+            const responseDiv = document.getElementById('poe-response');
+            responseDiv.textContent = 'Testing Poe API connection...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/poe/test`);
+                const data = await response.json();
+                responseDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                responseDiv.textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
