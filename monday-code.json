@@ -15,7 +15,7 @@
     "board_view": {
       "name": "AI Chat Assistant",
       "description": "Chat interface with AI for document parsing and board operations",
-      "path": "/client/index.html",
+      "path": "/index.html",
       "supported": true,
       "default_options": {
         "width": 800,
@@ -25,7 +25,7 @@
     "dashboard_widget": {
       "name": "AI Assistant Widget",
       "description": "Quick access AI assistant widget",
-      "path": "/client/index.html",
+      "path": "/index.html",
       "supported": true
     }
   },
