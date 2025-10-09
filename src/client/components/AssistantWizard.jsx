@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import '../styles/AssistantWizard.css';
+import { API_BASE } from '../config';
 
 function AssistantWizard({ onSave, onCancel, initialData = null, availableModels = [] }) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -15,6 +16,8 @@ function AssistantWizard({ onSave, onCancel, initialData = null, availableModels
   });
   
   const [errors, setErrors] = useState({});
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const knowledgeFileInputRef = useRef(null);
   
   const steps = [
     { title: 'Basic Info', icon: '📝' },
@@ -72,6 +75,56 @@ function AssistantWizard({ onSave, onCancel, initialData = null, availableModels
     if (errors[field]) {
       setErrors({ ...errors, [field]: undefined });
     }
+  };
+
+  const handleKnowledgeFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setUploadingFile(true);
+    
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append('file', file);
+      formDataUpload.append('boardId', formData.id); // Use agent ID as context
+
+      const response = await fetch(`${API_BASE}/api/upload-file`, {
+        method: 'POST',
+        body: formDataUpload
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload file');
+      }
+
+      const { fileUrl } = await response.json();
+      
+      // Add to knowledge files list
+      const newFile = {
+        id: `file-${Date.now()}`,
+        name: file.name,
+        url: fileUrl,
+        uploadedAt: new Date().toISOString(),
+        size: file.size
+      };
+
+      updateField('knowledgeFiles', [...formData.knowledgeFiles, newFile]);
+    } catch (error) {
+      console.error('File upload error:', error);
+      setErrors({ ...errors, knowledgeFiles: 'Failed to upload file' });
+    } finally {
+      setUploadingFile(false);
+      if (knowledgeFileInputRef.current) {
+        knowledgeFileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveKnowledgeFile = (fileId) => {
+    updateField(
+      'knowledgeFiles',
+      formData.knowledgeFiles.filter((f) => f.id !== fileId)
+    );
   };
 
   const renderStepContent = () => {
@@ -190,26 +243,76 @@ function AssistantWizard({ onSave, onCancel, initialData = null, availableModels
           </div>
         );
 
-      case 3: // Custom Instructions
+      case 3: // Custom Instructions & Knowledge Files
         return (
           <div className="wizard-step">
-            <h3>Custom Instructions</h3>
-            <p className="step-description">Add any additional guidelines for this assistant (optional).</p>
+            <h3>Custom Instructions & Knowledge</h3>
+            <p className="step-description">Add guidelines and upload reference files for this assistant (optional).</p>
             
             <div className="form-group">
-              <label>Instructions (optional)</label>
+              <label>Custom Instructions (optional)</label>
               <textarea
                 className="form-input"
                 value={formData.instructions}
                 onChange={(e) => updateField('instructions', e.target.value)}
                 placeholder="e.g., Always respond in Spanish, Use bullet points for lists, Focus on cost analysis..."
-                rows={6}
+                rows={4}
               />
+              <p className="help-text">These instructions are appended to every request.</p>
             </div>
 
-            <div className="info-box">
-              <strong>ℹ️ Note:</strong> Custom instructions are appended to every request
-              and can be used to modify the assistant's behavior without changing the main system prompt.
+            <div className="form-group">
+              <label>Knowledge Files (optional)</label>
+              <div className="knowledge-files-section">
+                <input
+                  type="file"
+                  ref={knowledgeFileInputRef}
+                  style={{ display: 'none' }}
+                  onChange={handleKnowledgeFileUpload}
+                  accept=".pdf,.docx,.doc,.txt,.json,.csv"
+                />
+                <button
+                  type="button"
+                  className="btn-upload-knowledge"
+                  onClick={() => knowledgeFileInputRef.current?.click()}
+                  disabled={uploadingFile}
+                >
+                  {uploadingFile ? '⏳ Uploading...' : '📎 Upload Knowledge File'}
+                </button>
+                {errors.knowledgeFiles && (
+                  <span className="error-text">{errors.knowledgeFiles}</span>
+                )}
+              </div>
+
+              {formData.knowledgeFiles.length > 0 && (
+                <div className="knowledge-files-list">
+                  {formData.knowledgeFiles.map((file) => (
+                    <div key={file.id} className="knowledge-file-item">
+                      <div className="file-info">
+                        <span className="file-icon">📄</span>
+                        <div className="file-details">
+                          <div className="file-name">{file.name}</div>
+                          <div className="file-meta">
+                            {(file.size / 1024).toFixed(1)} KB
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-remove-file"
+                        onClick={() => handleRemoveKnowledgeFile(file.id)}
+                        title="Remove file"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p className="help-text">
+                Upload reference documents that the assistant can use to provide better answers.
+              </p>
             </div>
           </div>
         );
@@ -252,6 +355,19 @@ function AssistantWizard({ onSave, onCancel, initialData = null, availableModels
                 <div className="review-item">
                   <strong>Custom Instructions:</strong>
                   <div className="review-text-box">{formData.instructions}</div>
+                </div>
+              )}
+
+              {formData.knowledgeFiles.length > 0 && (
+                <div className="review-item">
+                  <strong>Knowledge Files:</strong>
+                  <div className="review-files-list">
+                    {formData.knowledgeFiles.map((file) => (
+                      <div key={file.id} className="review-file-badge">
+                        📄 {file.name}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

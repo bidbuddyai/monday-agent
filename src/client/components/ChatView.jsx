@@ -14,8 +14,10 @@ function ChatView({ boardId, settings, onSelectAgent, onOpenSettings }) {
   const [executingTool, setExecutingTool] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [parseResult, setParseResult] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
+  const dropZoneRef = useRef(null);
 
   const agents = settings?.agents?.length ? settings.agents : [
     {
@@ -326,8 +328,53 @@ function ChatView({ boardId, settings, onSelectAgent, onOpenSettings }) {
     }
   };
 
+  // Drag and drop handlers
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.target === dropZoneRef.current) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      // Simulate file input change
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      if (fileInputRef.current) {
+        fileInputRef.current.files = dataTransfer.files;
+        handleFileSelect({ target: { files: dataTransfer.files } });
+      }
+    }
+  };
+
   return (
-    <div className="chat-view" style={{ flex: 1 }}>
+    <div 
+      className="chat-view" 
+      style={{ flex: 1 }}
+      ref={dropZoneRef}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       <div className="chat-header">
         <div>
           <div className="chat-agent-name">{activeAgent?.name || 'Assistant'}</div>
@@ -368,6 +415,15 @@ function ChatView({ boardId, settings, onSelectAgent, onOpenSettings }) {
           </button>
         </div>
       </div>
+
+      {isDragging && (
+        <div className="drop-overlay">
+          <div className="drop-message">
+            <div className="drop-icon">📎</div>
+            <div>Drop file here to parse</div>
+          </div>
+        </div>
+      )}
 
       <div className="messages-container">
         {messages.map((msg, idx) => (
@@ -426,7 +482,7 @@ function ChatView({ boardId, settings, onSelectAgent, onOpenSettings }) {
             value={input}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={activeAgent?.system || 'Send a message...'}
+            placeholder="Send a message..."
             disabled={isSending}
             rows={3}
           />
