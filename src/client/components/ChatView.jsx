@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import ConfirmationDialog from './ConfirmationDialog';
 import '../styles/ChatView.css';
 import '../styles/components.css';
 import { API_BASE } from '../config';
@@ -8,6 +9,8 @@ function ChatView({ boardId, settings, onSelectAgent, onOpenSettings }) {
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState(null);
+  const [pendingToolCall, setPendingToolCall] = useState(null);
+  const [executingTool, setExecutingTool] = useState(false);
   const bottomRef = useRef(null);
 
   const agents = settings?.agents?.length ? settings.agents : [
@@ -68,11 +71,33 @@ function ChatView({ boardId, settings, onSelectAgent, onOpenSettings }) {
       }
 
       const data = await res.json();
-      const reply = data.reply || 'No response received.';
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: reply, ts: new Date().toISOString() }
-      ]);
+      
+      // Check if response is a tool call
+      if (data.type === 'tool_call' && data.toolCalls && data.toolCalls.length > 0) {
+        const toolCall = data.toolCalls[0];
+        const reply = data.reply || 'I can help you with that. Please confirm the action below.';
+        
+        // Add assistant's message explaining what it wants to do
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: reply, ts: new Date().toISOString() }
+        ]);
+
+        // Set pending tool call for confirmation
+        setPendingToolCall({
+          toolCall: toolCall,
+          summary: reply,
+          payload: toolCall.arguments,
+          confidence: toolCall.confidence
+        });
+      } else {
+        // Regular assistant response
+        const reply = data.reply || 'No response received.';
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: reply, ts: new Date().toISOString() }
+        ]);
+      }
     } catch (err) {
       console.error('Chat send failed', err);
       const message = err.message.includes('Poe API key')
@@ -91,6 +116,65 @@ function ChatView({ boardId, settings, onSelectAgent, onOpenSettings }) {
     } finally {
       setIsSending(false);
     }
+  };
+
+  const handleConfirmToolCall = async () => {
+    if (!pendingToolCall) return;
+
+    setExecutingTool(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_BASE}/api/poe/execute-tool`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          toolCall: pendingToolCall.toolCall,
+          boardId: boardId
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to execute tool');
+      }
+
+      // Add success message to chat
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `✓ Successfully updated item: ${data.result || 'Update complete'}`,
+        ts: new Date().toISOString()
+      }]);
+
+      setPendingToolCall(null);
+    } catch (err) {
+      console.error('Tool execution error:', err);
+      const errorMsg = `Failed to execute action: ${err.message}`;
+      setError(errorMsg);
+      
+      // Add error message to chat
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `✗ Error: ${err.message}`,
+        ts: new Date().toISOString(),
+        error: true
+      }]);
+    } finally {
+      setExecutingTool(false);
+    }
+  };
+
+  const handleCancelToolCall = () => {
+    // Add cancellation message to chat
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: '✗ Action cancelled by user',
+      ts: new Date().toISOString()
+    }]);
+    setPendingToolCall(null);
   };
 
   const handleKeyDown = (event) => {
@@ -158,6 +242,16 @@ function ChatView({ boardId, settings, onSelectAgent, onOpenSettings }) {
       </div>
 
       {error && <div className="chat-error-banner">{error}</div>}
+
+      {/* Tool Call Confirmation Dialog */}
+      {pendingToolCall && (
+        <ConfirmationDialog
+          action={pendingToolCall}
+          onConfirm={handleConfirmToolCall}
+          onCancel={handleCancelToolCall}
+          disabled={executingTool}
+        />
+      )}
 
       <div className="input-container">
         <div className="input-row">
