@@ -97,10 +97,59 @@ const ACTION_LOG = new Map();
 const getBoardId = (req) => String(req.query.boardId || req.body?.boardId || 'global');
 const getSettings = (boardId) => SETTINGS_BY_BOARD.get(boardId) || null;
 const setSettings = (boardId, settings) => SETTINGS_BY_BOARD.set(boardId, settings);
-const logAction = (boardId, entry) => {
+
+const logAction = async (boardId, entry, mondayClient = null) => {
   const list = ACTION_LOG.get(boardId) || [];
-  list.unshift({ ts: new Date().toISOString(), ...entry });
+  const actionEntry = { ts: new Date().toISOString(), ...entry };
+  
+  // Try to fetch item name if itemId is provided and we have a monday client
+  if (entry.itemId && mondayClient) {
+    try {
+      const query = `
+        query ($itemId: [ID!]) {
+          items(ids: $itemId) {
+            id
+            name
+          }
+        }
+      `;
+      const response = await mondayClient.query(query, {
+        variables: { itemId: [String(entry.itemId)] }
+      });
+      const item = response.data?.items?.[0];
+      if (item) {
+        actionEntry.itemName = item.name;
+      }
+    } catch (err) {
+      console.error('Failed to fetch item name for logging:', err);
+    }
+  }
+  
+  // Build a better note with item name if available
+  if (actionEntry.itemName && !actionEntry.note) {
+    switch (entry.type) {
+      case 'create':
+        actionEntry.note = `Created item: ${actionEntry.itemName}`;
+        break;
+      case 'update':
+        if (entry.changedColumns && entry.changedColumns.length > 0) {
+          actionEntry.note = `Updated ${entry.changedColumns.join(', ')} for ${actionEntry.itemName}`;
+        } else {
+          actionEntry.note = `Updated ${actionEntry.itemName}`;
+        }
+        break;
+      case 'search':
+        actionEntry.note = `Found ${entry.count || 0} items matching "${entry.query || ''}"`;
+        break;
+      case 'parse':
+        actionEntry.note = `Parsed file: ${entry.fileName || ''}`;
+        break;
+    }
+  }
+  
+  list.unshift(actionEntry);
   ACTION_LOG.set(boardId, list.slice(0, 50));
+  return actionEntry;
 };
 
 const buildAxiosError = (error) => {
@@ -471,7 +520,12 @@ router.post('/execute-tool', async (req, res) => {
         const response = await mondayClient.query(mutation, { variables });
         payload = response.data.create_item;
         action = 'created';
-        logAction(boardId, { type: 'create', itemId: payload?.id || null, note: `Created item ${payload?.name || ''}` });
+        await logAction(boardId, { 
+          type: 'create', 
+          itemId: payload?.id || null, 
+          itemName: payload?.name || null,
+          note: `Created item: ${payload?.name || ''}` 
+        }, mondayClient);
         break;
       }
       case 'update_monday_item': {
@@ -502,7 +556,19 @@ router.post('/execute-tool', async (req, res) => {
         });
         payload = response.data.change_multiple_column_values;
         action = 'updated';
-        logAction(boardId, { type: 'update', itemId, note: 'Updated column values' });
+        
+        // Extract column keys that were changed
+        const changedColumns = Object.keys(columnValues);
+        
+        await logAction(boardId, { 
+          type: 'update', 
+          itemId,
+          itemName: payload?.name || null,
+          changedColumns,
+          note: changedColumns.length > 0 
+            ? `Updated ${changedColumns.join(', ')} for ${payload?.name || 'item'}` 
+            : 'Updated column values'
+        }, mondayClient);
         break;
       }
       case 'get_board_schema': {
